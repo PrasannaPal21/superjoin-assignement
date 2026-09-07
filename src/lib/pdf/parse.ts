@@ -27,7 +27,6 @@ export async function extractPdfPages(filePath: string): Promise<PdfParseResult>
     const loadingTask = pdfjs.getDocument({
       data,
       useSystemFonts: true,
-      isEvalSupported: false,
       disableFontFace: true,
       // password-protected docs should fail clearly
       password: "",
