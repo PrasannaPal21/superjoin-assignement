@@ -5,7 +5,6 @@ import { DatabaseSync } from "node:sqlite";
 const DEFAULT_DB = "data/factlayer.db";
 
 type SqlDb = DatabaseSync;
-type SqlStmt = ReturnType<DatabaseSync["prepare"]>;
 
 let dbInstance: SqlDb | null = null;
 
@@ -13,44 +12,54 @@ export function getDbPath(): string {
   return process.env.DATABASE_PATH || DEFAULT_DB;
 }
 
-/**
- * Thin wrapper so existing `.prepare().run/get/all` call sites keep working.
- * Uses Node's built-in SQLite (no native addon) — avoids Render segfaults from better-sqlite3.
- */
-function wrapStatement(stmt: SqlStmt) {
-  const bind = (args: unknown[]) => {
-    if (
-      args.length === 1 &&
-      typeof args[0] === "object" &&
-      args[0] !== null &&
-      !Array.isArray(args[0]) &&
-      !(args[0] instanceof Buffer)
-    ) {
-      const src = args[0] as Record<string, unknown>;
-      const named: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(src)) {
-        named[key] = value;
-        named[`@${key}`] = value;
-        named[`$${key}`] = value;
-        named[`:${key}`] = value;
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    !(value instanceof Buffer)
+  );
+}
+
+/** Convert better-sqlite3-style @name placeholders to positional ? for node:sqlite. */
+function rewriteNamedSql(sql: string): { sql: string; names: string[] } {
+  const names: string[] = [];
+  const rewritten = sql.replace(/@([A-Za-z_][A-Za-z0-9_]*)/g, (_m, name: string) => {
+    names.push(name);
+    return "?";
+  });
+  return { sql: rewritten, names };
+}
+
+function resolveArgs(names: string[], args: unknown[]): unknown[] {
+  if (names.length > 0 && args.length === 1 && isPlainObject(args[0])) {
+    const obj = args[0];
+    return names.map((name) => {
+      if (!(name in obj)) {
+        throw new Error(`Missing SQL bind parameter: ${name}`);
       }
-      return named;
-    }
-    return null;
-  };
+      return obj[name];
+    });
+  }
+  return args;
+}
+
+function wrapStatement(rawSql: string, db: SqlDb) {
+  const { sql, names } = rewriteNamedSql(rawSql);
+  const stmt = db.prepare(sql);
 
   return {
     run(...args: unknown[]) {
-      const named = bind(args);
-      return named ? stmt.run(named) : stmt.run(...(args as never[]));
+      const values = resolveArgs(names, args);
+      return stmt.run(...(values as never[]));
     },
     get(...args: unknown[]) {
-      const named = bind(args);
-      return named ? stmt.get(named) : stmt.get(...(args as never[]));
+      const values = resolveArgs(names, args);
+      return stmt.get(...(values as never[]));
     },
     all(...args: unknown[]) {
-      const named = bind(args);
-      return named ? stmt.all(named) : stmt.all(...(args as never[]));
+      const values = resolveArgs(names, args);
+      return stmt.all(...(values as never[]));
     },
   };
 }
@@ -61,6 +70,20 @@ export type AppDatabase = {
   close: () => void;
 };
 
+function wrapDb(raw: SqlDb): AppDatabase {
+  return {
+    prepare(sql: string) {
+      return wrapStatement(sql, raw);
+    },
+    exec(sql: string) {
+      raw.exec(sql);
+    },
+    close() {
+      raw.close();
+    },
+  };
+}
+
 export function getDb(): AppDatabase {
   if (dbInstance) {
     return wrapDb(dbInstance);
@@ -70,26 +93,11 @@ export function getDb(): AppDatabase {
   const dir = path.dirname(path.resolve(dbPath));
   fs.mkdirSync(dir, { recursive: true });
 
-  // DELETE journal is safer on ephemeral Render disks than WAL.
   const raw = new DatabaseSync(dbPath);
   raw.exec("PRAGMA journal_mode = DELETE;");
   raw.exec("PRAGMA foreign_keys = ON;");
   dbInstance = raw;
   return wrapDb(raw);
-}
-
-function wrapDb(raw: SqlDb): AppDatabase {
-  return {
-    prepare(sql: string) {
-      return wrapStatement(raw.prepare(sql));
-    },
-    exec(sql: string) {
-      raw.exec(sql);
-    },
-    close() {
-      raw.close();
-    },
-  };
 }
 
 export function closeDb(): void {
