@@ -32,6 +32,8 @@ let ticking = false;
 export function kickWorker(): void {
   if (ticking) return;
   ticking = true;
+  // Ensure matcher is registered (side-effect import)
+  void import("@/lib/pipeline/match");
   // Fire-and-forget; Next route handlers shouldn't block on full pipelines
   setTimeout(() => {
     void runWorkerLoop().finally(() => {
