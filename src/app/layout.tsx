@@ -21,8 +21,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fact Knowledge Layer",
-  description: "Grounded facts across PDFs — corroboration, contradiction, reconciliation.",
+  title: "Factlayer",
+  description: "Production fact knowledge layer for grounded PDF extraction and reconciliation.",
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} ${mono.variable} antialiased`}>
+      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         {children}
       </body>
     </html>

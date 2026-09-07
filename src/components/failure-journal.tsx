@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Failure = {
   id: string;
@@ -22,28 +24,39 @@ export function FailureJournal({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [refreshKey]);
 
   return (
-    <section className="rounded-2xl border border-line bg-panel p-6 backdrop-blur">
-      <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-        Failure journal
-      </h2>
-      <p className="mt-1 text-sm text-muted">
-        Honest log of parse gaps, model schema slips, and matching issues.
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Operational log for parse gaps, model errors, and matching failures.
       </p>
-      <ul className="mt-4 space-y-3">
-        {failures.length === 0 && (
-          <li className="text-sm text-muted">Nothing recorded yet.</li>
-        )}
-        {failures.map((f) => (
-          <li key={f.id} className="rounded-xl border border-line bg-white/70 px-4 py-3">
-            <p className="font-mono text-[11px] uppercase text-warn">{f.stage}</p>
-            <p className="text-sm font-medium text-ink">{f.summary}</p>
-            {f.detail && <p className="mt-1 text-sm text-muted">{f.detail}</p>}
-            {f.suggestion && (
-              <p className="mt-1 text-sm text-accent">Improve: {f.suggestion}</p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
+      <ScrollArea className="h-[min(70vh,720px)]">
+        <ul className="space-y-2 pr-3">
+          {failures.length === 0 && (
+            <li className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">
+              No incidents recorded.
+            </li>
+          )}
+          {failures.map((f) => (
+            <li
+              key={f.id}
+              className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-warn/30 bg-warn/10 text-warn">
+                  {f.stage}
+                </Badge>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {f.createdAt}
+                </span>
+              </div>
+              <p className="mt-2 text-sm font-medium">{f.summary}</p>
+              {f.detail && <p className="mt-1 text-sm text-muted-foreground">{f.detail}</p>}
+              {f.suggestion && (
+                <p className="mt-1 text-sm text-primary">Action: {f.suggestion}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </ScrollArea>
+    </div>
   );
 }

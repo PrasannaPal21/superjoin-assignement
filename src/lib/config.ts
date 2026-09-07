@@ -26,8 +26,18 @@ export function getMaxConcurrentExtractions(): number {
 }
 
 export function getGroqModel(): string {
-  return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  return process.env.GROQ_MODEL?.trim() || "openai/gpt-oss-120b";
 }
+
+/** Tried in order when the primary model returns model_not_found. */
+export function getGroqFallbackModels(): string[] {
+  const raw = process.env.GROQ_FALLBACK_MODELS || "openai/gpt-oss-20b";
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 
 export function resolveUnderRoot(relativePath: string): string {
   return path.resolve(process.cwd(), relativePath);

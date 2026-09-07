@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Fact = {
   id: string;
@@ -38,27 +41,22 @@ export function FactBrowser({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [factType, q, refreshKey]);
 
   return (
-    <section className="rounded-2xl border border-line bg-panel p-6 backdrop-blur">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-            Facts
-          </h2>
-          <p className="text-sm text-muted">
-            Every claim stays linked to a source quote. Types grow as new kinds appear.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Claims with source evidence. Fact types grow as new kinds appear.
+        </p>
         <div className="flex flex-wrap gap-2">
-          <input
+          <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search claims…"
-            className="rounded-lg border border-line bg-white/80 px-3 py-2 text-sm outline-none focus:border-accent"
+            className="w-48 bg-card"
           />
           <select
             value={factType}
             onChange={(e) => setFactType(e.target.value)}
-            className="rounded-lg border border-line bg-white/80 px-3 py-2 text-sm outline-none focus:border-accent"
+            className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
           >
             <option value="">All types</option>
             {types.map((t) => (
@@ -70,46 +68,54 @@ export function FactBrowser({ refreshKey = 0 }: { refreshKey?: number }) {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {facts.length === 0 && (
-          <p className="text-sm text-muted">No facts yet — process a PDF first.</p>
-        )}
-        {facts.map((f) => (
-          <article
-            key={f.id}
-            className="rounded-xl border border-line bg-white/70 px-4 py-3"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded bg-accent-soft px-2 py-0.5 font-mono text-[11px] text-accent">
-                {f.factType}
-              </span>
-              <span className="font-mono text-[11px] text-muted">
-                conf {(f.confidence * 100).toFixed(0)}%
-              </span>
-              {f.period && (
-                <span className="font-mono text-[11px] text-muted">{f.period}</span>
-              )}
-              {f.scope && (
-                <span className="font-mono text-[11px] text-muted">{f.scope}</span>
-              )}
+      <ScrollArea className="h-[min(70vh,720px)]">
+        <div className="space-y-2 pr-3">
+          {facts.length === 0 && (
+            <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">
+              No facts yet — process at least one PDF.
             </div>
-            <p className="mt-2 text-sm font-medium text-ink">{f.claim}</p>
-            {(f.rawValue || f.unit || f.entity) && (
-              <p className="mt-1 font-mono text-xs text-muted">
-                {[f.entity, f.rawValue, f.unit].filter(Boolean).join(" · ")}
-              </p>
-            )}
-            {f.evidence[0] && (
-              <blockquote className="mt-3 border-l-2 border-accent/40 pl-3 text-sm text-muted">
-                <span className="font-mono text-[11px] text-accent">
-                  p.{f.evidence[0].page ?? "?"}
-                </span>{" "}
-                “{f.evidence[0].quote}”
-              </blockquote>
-            )}
-          </article>
-        ))}
-      </div>
-    </section>
+          )}
+          {facts.map((f) => (
+            <article
+              key={f.id}
+              className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-accent text-accent-foreground hover:bg-accent">
+                  {f.factType}
+                </Badge>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {(f.confidence * 100).toFixed(0)}%
+                </span>
+                {f.period && (
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {f.period}
+                  </span>
+                )}
+                {f.scope && (
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {f.scope}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-sm font-medium">{f.claim}</p>
+              {(f.rawValue || f.unit || f.entity) && (
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  {[f.entity, f.rawValue, f.unit].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {f.evidence[0] && (
+                <blockquote className="mt-3 border-l-2 border-primary/40 pl-3 text-sm text-muted-foreground">
+                  <span className="font-mono text-[11px] text-primary">
+                    p.{f.evidence[0].page ?? "?"}
+                  </span>{" "}
+                  “{f.evidence[0].quote}”
+                </blockquote>
+              )}
+            </article>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }

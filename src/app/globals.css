@@ -1,46 +1,105 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f3f0e8;
-  --foreground: #1c2430;
-  --ink: #142033;
-  --muted: #5b6573;
-  --panel: rgba(255, 255, 255, 0.72);
-  --line: rgba(20, 32, 51, 0.12);
-  --accent: #0f6b5c;
-  --accent-soft: #d8efe9;
+  --background: #f6f7f4;
+  --foreground: #152018;
+  --card: #ffffff;
+  --card-foreground: #152018;
+  --popover: #ffffff;
+  --popover-foreground: #152018;
+  --primary: #0c5c4c;
+  --primary-foreground: #f4faf7;
+  --secondary: #e7eee9;
+  --secondary-foreground: #1d332c;
+  --muted: #eef2ef;
+  --muted-foreground: #5a6b62;
+  --accent: #d8ebe3;
+  --accent-foreground: #0c5c4c;
+  --destructive: #a33b3b;
+  --border: #d5ddd7;
+  --input: #d5ddd7;
+  --ring: #0c5c4c;
+  --radius: 0.7rem;
+
+  --ok: #1f6b3a;
   --warn: #9a4d1c;
   --danger: #8f2f2f;
-  --ok: #1f6b3a;
+  --sidebar: #101813;
+  --sidebar-foreground: #e7eee9;
+  --sidebar-primary: #2f9b7f;
+  --sidebar-primary-foreground: #06110d;
+  --sidebar-accent: #1a2a23;
+  --sidebar-accent-foreground: #e7eee9;
+  --sidebar-border: #24332c;
+  --sidebar-ring: #2f9b7f;
+  --chart-1: #0c5c4c;
+  --chart-2: #8f2f2f;
+  --chart-3: #2f9b7f;
+  --chart-4: #9a4d1c;
+  --chart-5: #3d4f46;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-ink: var(--ink);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
-  --color-panel: var(--panel);
-  --color-line: var(--line);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
-  --color-ok: var(--ok);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
   --font-mono: var(--font-mono);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }
 
-body {
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #d9ece7 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #e8dfd0 0%, transparent 50%),
-    var(--background);
-  color: var(--foreground);
-  font-family: var(--font-body), system-ui, sans-serif;
-  min-height: 100vh;
-}
-
-::selection {
-  background: color-mix(in oklab, var(--accent) 30%, white);
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      linear-gradient(180deg, rgba(12, 92, 76, 0.04), transparent 220px),
+      radial-gradient(800px 400px at 100% 0%, rgba(47, 155, 127, 0.08), transparent 60%);
+    min-height: 100vh;
+    font-family: var(--font-body), system-ui, sans-serif;
+  }
+  html {
+    @apply font-sans;
+  }
 }

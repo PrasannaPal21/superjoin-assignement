@@ -16,6 +16,8 @@ import {
   persistChunk,
 } from "@/lib/pipeline/extract-stage";
 import { mapPool } from "@/lib/pipeline/pool";
+import { suggestionForError } from "@/lib/pipeline/error-hints";
+import { getGroqApiKey } from "@/lib/llm/groq";
 
 let matchNewDocumentFacts: (documentId: string) => Promise<void> = async () => {
   /* no-op until matcher lands */
@@ -57,6 +59,12 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
   }
 
   try {
+    if (!getGroqApiKey()) {
+      throw new Error(
+        "GROQ_API_KEY is missing. Set it in .env (or deployment env) and restart the Node process.",
+      );
+    }
+
     updateDocumentStatus(documentId, "processing");
     updateJobProgress(jobId, "parsing", 0, 1);
 
@@ -71,7 +79,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
         stage: "parse",
         summary: "Most pages had little or no extractable text",
         detail: `${emptyPages}/${parsed.pageCount} pages looked empty. Likely scanned/image PDF without OCR.`,
-        suggestion: "Add an OCR pass (e.g. Tesseract) or ask for text-based PDFs.",
+        suggestion: suggestionForError("parse", "Most pages had little or no extractable text"),
       });
     }
 
@@ -83,7 +91,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
         stage: "parse",
         summary: "No text chunks produced",
         detail: "Parser returned no usable page text.",
-        suggestion: "Verify the PDF is not encrypted or image-only.",
+        suggestion: suggestionForError("parse", "No text chunks produced"),
       });
       updateDocumentStatus(documentId, "failed", {
         error_message: "No extractable text",
@@ -117,7 +125,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
             stage: "extract",
             summary: `Chunk ${chunk.pageStart}-${chunk.pageEnd} extraction failed`,
             detail: message,
-            suggestion: "Retry with a lower temperature or smaller chunk size.",
+            suggestion: suggestionForError("extract", message),
           });
           return 0;
         }
@@ -136,7 +144,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
         stage: "match",
         summary: "Cross-document matching failed after extraction",
         detail: message,
-        suggestion: "Facts were kept; re-run matching once the model is available.",
+        suggestion: suggestionForError("match", message),
       });
     }
 

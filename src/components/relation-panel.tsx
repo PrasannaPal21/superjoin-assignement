@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { RelationOverviewChart } from "@/components/ui/relation-overview-chart";
 
 type Relation = {
@@ -49,20 +51,15 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [filter, refreshKey]);
 
   return (
-    <section className="rounded-2xl border border-line bg-panel p-6 backdrop-blur">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-            Cross-document relations
-          </h2>
-          <p className="text-sm text-muted">
-            Side-by-side evidence with an explicit reason for the link.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Pairwise links with evidence on both sides and an explicit rationale.
+        </p>
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="rounded-lg border border-line bg-white/80 px-3 py-2 text-sm"
+          className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
         >
           <option value="">All relations</option>
           <option value="corroborates">Corroborates</option>
@@ -73,51 +70,53 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
 
       <RelationOverviewChart counts={counts} />
 
-      <div className="mt-5 space-y-4">
-        {relations.length === 0 && (
-          <p className="text-sm text-muted">
-            Relations appear after at least two documents have been processed.
-          </p>
-        )}
-        {relations.map((r) => (
-          <article key={r.id} className="rounded-xl border border-line bg-white/70 p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <TypeBadge type={r.relationType} />
-              <span className="font-mono text-[11px] text-muted">
-                conf {(r.confidence * 100).toFixed(0)}%
-              </span>
-              {r.contextTags.map((t) => (
-                <span
-                  key={t}
-                  className="rounded bg-ink/5 px-2 py-0.5 font-mono text-[11px] text-muted"
-                >
-                  {t}
+      <ScrollArea className="h-[min(60vh,640px)]">
+        <div className="mt-1 space-y-3 pr-3">
+          {relations.length === 0 && (
+            <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">
+              Relations appear after two or more documents finish processing.
+            </div>
+          )}
+          {relations.map((r) => (
+            <article
+              key={r.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <TypeBadge type={r.relationType} />
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {(r.confidence * 100).toFixed(0)}%
                 </span>
-              ))}
-            </div>
-            <p className="mb-3 text-sm text-ink">{r.rationale}</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <EvidenceSide side="A" fact={r.a} />
-              <EvidenceSide side="B" fact={r.b} />
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
+                {r.contextTags.map((t) => (
+                  <Badge key={t} variant="secondary" className="font-mono text-[10px]">
+                    {t}
+                  </Badge>
+                ))}
+              </div>
+              <p className="mb-3 text-sm">{r.rationale}</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <EvidenceSide side="A" fact={r.a} />
+                <EvidenceSide side="B" fact={r.b} />
+              </div>
+            </article>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 
 function TypeBadge({ type }: { type: string }) {
   const color =
     type === "corroborates"
-      ? "bg-ok/10 text-ok"
+      ? "bg-ok/15 text-ok border-ok/20"
       : type === "contradicts"
-        ? "bg-danger/10 text-danger"
-        : "bg-accent-soft text-accent";
+        ? "bg-danger/15 text-danger border-danger/20"
+        : "bg-accent text-accent-foreground border-transparent";
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-semibold uppercase ${color}`}>
+    <Badge variant="outline" className={`uppercase ${color}`}>
       {type}
-    </span>
+    </Badge>
   );
 }
 
@@ -129,16 +128,16 @@ function EvidenceSide({
   fact: Relation["a"];
 }) {
   return (
-    <div className="rounded-lg border border-line bg-background/50 p-3">
-      <p className="font-mono text-[11px] uppercase text-muted">
+    <div className="rounded-lg border border-border bg-muted/40 p-3">
+      <p className="font-mono text-[11px] uppercase text-muted-foreground">
         {side} · {fact.documentName || "document"}
       </p>
-      <p className="mt-1 text-sm font-medium text-ink">{fact.claim}</p>
-      <p className="mt-1 font-mono text-[11px] text-muted">
+      <p className="mt-1 text-sm font-medium">{fact.claim}</p>
+      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
         {[fact.rawValue, fact.unit, fact.period, fact.scope].filter(Boolean).join(" · ")}
       </p>
       {fact.evidence && (
-        <blockquote className="mt-2 border-l-2 border-line pl-2 text-xs text-muted">
+        <blockquote className="mt-2 border-l-2 border-border pl-2 text-xs text-muted-foreground">
           p.{fact.evidence.page ?? "?"} “{fact.evidence.quote}”
         </blockquote>
       )}

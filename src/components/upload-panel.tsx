@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { Upload } from "lucide-react";
-import { OrbitLoader } from "@/components/ui/orbit-loader";
+import Loader from "@/components/kokonutui/loader";
 
 type UploadResult = {
   document: { id: string; filename: string; status: string };
-  job: { id: string; status: string };
+  job: { id: string; status: string } | null;
+  deduped?: boolean;
+  message?: string;
 };
 
 export function UploadPanel({
@@ -18,6 +20,7 @@ export function UploadPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [last, setLast] = useState<UploadResult | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   async function onFileChange(file: File | null) {
     if (!file) return;
@@ -39,44 +42,66 @@ export function UploadPanel({
   }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="rounded-2xl border border-line bg-panel p-6 backdrop-blur"
-    >
-      <div className="mb-4">
-        <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-          Upload a PDF
-        </h2>
-        <p className="mt-1 max-w-xl text-sm text-muted">
-          Drop any PDF. Facts are extracted with evidence, then compared against the
-          existing knowledge layer — without rebuilding older documents.
+    <div className="mx-auto max-w-2xl space-y-4">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="font-[family-name:var(--font-display)] text-xl">Add document</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          PDF only. Validated by magic bytes, size-capped, content-hashed for dedupe.
+          New documents extend the knowledge layer without rebuilding existing facts.
         </p>
-      </div>
 
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-white/50 px-6 py-10 transition hover:border-accent hover:bg-accent-soft/40">
-        <Upload className="h-6 w-6 text-accent" />
-        <span className="text-sm font-medium text-ink">Choose PDF or drop here</span>
-        <span className="text-xs text-muted">Validated by extension + magic bytes</span>
-        <input
-          type="file"
-          accept="application/pdf,.pdf"
-          className="hidden"
-          disabled={busy}
-          onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
-        />
-      </label>
+        <label
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            void onFileChange(e.dataTransfer.files?.[0] ?? null);
+          }}
+          className={`mt-5 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-14 transition ${
+            dragOver
+              ? "border-primary bg-accent"
+              : "border-border bg-muted/40 hover:border-primary/50 hover:bg-accent/50"
+          }`}
+        >
+          <Upload className="h-6 w-6 text-primary" />
+          <span className="text-sm font-medium">Drop a PDF or browse</span>
+          <span className="rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground">
+            Select file
+          </span>
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            disabled={busy}
+            onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
+          />
+        </label>
 
-      <div className="mt-4 min-h-8">
-        {busy && <OrbitLoader label="Uploading and queuing…" />}
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {busy && (
+          <Loader
+            className="mt-4 py-4"
+            size="sm"
+            title="Queuing document"
+            subtitle="Validating and enqueueing for extraction"
+          />
+        )}
+        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
         {last && !busy && (
-          <p className="font-mono text-xs text-muted">
-            queued {last.document.filename} · job {last.job.id.slice(0, 8)}
-          </p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-3 font-mono text-xs text-muted-foreground"
+          >
+            {last.deduped ? "deduped · " : "queued · "}
+            {last.document.filename}
+            {last.job ? ` · job ${last.job.id.slice(0, 8)}` : ""}
+          </motion.p>
         )}
       </div>
-    </motion.section>
+    </div>
   );
 }

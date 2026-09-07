@@ -42,7 +42,8 @@ npm test   # unit tests (no API key required)
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `GROQ_API_KEY` | Required for extraction/matching | — |
-| `GROQ_MODEL` | Chat model | `llama-3.3-70b-versatile` |
+| `GROQ_MODEL` | Chat model | `openai/gpt-oss-120b` |
+| `GROQ_FALLBACK_MODELS` | Comma-separated fallbacks on model_not_found | `openai/gpt-oss-20b` |
 | `MAX_UPLOAD_MB` | Upload size cap | `40` |
 | `MAX_PAGES` | Pages processed per PDF | `500` |
 | `CHUNK_PAGES` | Pages per LLM chunk | `3` |
@@ -88,7 +89,7 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/API.md](docs/API.
 
 ### AI tools used
 
-- **Groq** (`llama-3.3-70b-versatile` by default) for structured fact extraction and relation classification.
+- **Groq** (`openai/gpt-oss-120b` by default, with fallbacks) for structured fact extraction and relation classification.
 - Coding assistants during implementation (Cursor). Pipeline behavior is deterministic given the same model outputs; fixtures under `fixtures/` help offline review.
 
 ## Limitations and Next Steps

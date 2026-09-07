@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { OrbitLoader } from "@/components/ui/orbit-loader";
+import Loader from "@/components/kokonutui/loader";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Doc = {
   id: string;
@@ -43,67 +45,75 @@ export function DocumentList({ refreshKey = 0 }: { refreshKey?: number }) {
   const busy = docs.some((d) => d.status === "queued" || d.status === "processing");
 
   return (
-    <section className="rounded-2xl border border-line bg-panel p-6 backdrop-blur">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-ink">
-            Documents
-          </h2>
-          <p className="text-sm text-muted">Live status from the processing queue.</p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Queue depth and per-document pipeline status.
+        </p>
         {ops && (
-          <p className="font-mono text-xs text-muted">
-            q:{ops.jobsQueued} run:{ops.jobsRunning} fail:{ops.jobsFailed}
-          </p>
+          <div className="flex gap-2 font-mono text-xs text-muted-foreground">
+            <span>queued {ops.jobsQueued}</span>
+            <span>running {ops.jobsRunning}</span>
+            <span>failed {ops.jobsFailed}</span>
+          </div>
         )}
       </div>
 
-      {loading && <OrbitLoader label="Loading documents…" />}
-      {!loading && docs.length === 0 && (
-        <p className="text-sm text-muted">No documents yet. Upload a PDF to start.</p>
+      {loading && (
+        <Loader size="sm" title="Loading documents" subtitle="Reading job queue" />
       )}
 
-      <ul className="space-y-3">
-        {docs.map((d) => (
-          <li
-            key={d.id}
-            className="flex flex-col gap-1 rounded-xl border border-line bg-white/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <p className="font-medium text-ink">{d.filename}</p>
-              <p className="font-mono text-xs text-muted">
-                {Math.round(d.byteSize / 1024)} KB
-                {d.pageCount != null ? ` · ${d.pageCount} pages` : ""}
-                {d.contentHash ? ` · ${d.contentHash.slice(0, 10)}` : ""}
-              </p>
-              {d.errorMessage && (
-                <p className="mt-1 text-xs text-danger">{d.errorMessage}</p>
-              )}
-            </div>
-            <StatusPill status={d.status} />
-          </li>
-        ))}
-      </ul>
-
-      {busy && (
-        <div className="mt-4">
-          <OrbitLoader label="Processing in background…" />
+      {!loading && docs.length === 0 && (
+        <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">
+          No documents yet. Ingest a PDF to start the pipeline.
         </div>
       )}
-    </section>
+
+      <ScrollArea className="h-[min(70vh,720px)]">
+        <ul className="space-y-2 pr-3">
+          {docs.map((d) => (
+            <li
+              key={d.id}
+              className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{d.filename}</p>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {Math.round(d.byteSize / 1024)} KB
+                  {d.pageCount != null ? ` · ${d.pageCount} pages` : ""}
+                  {d.contentHash ? ` · ${d.contentHash.slice(0, 10)}` : ""}
+                </p>
+                {d.errorMessage && (
+                  <p className="mt-1 text-xs text-destructive">{d.errorMessage}</p>
+                )}
+              </div>
+              <StatusBadge status={d.status} />
+            </li>
+          ))}
+        </ul>
+      </ScrollArea>
+
+      {busy && (
+        <Loader
+          size="sm"
+          title="Pipeline active"
+          subtitle="Extracting facts and matching across documents"
+        />
+      )}
+    </div>
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const color =
+function StatusBadge({ status }: { status: string }) {
+  const variant =
     status === "ready"
-      ? "text-ok bg-ok/10"
+      ? "bg-ok/15 text-ok border-ok/20"
       : status === "failed"
-        ? "text-danger bg-danger/10"
-        : "text-warn bg-warn/10";
+        ? "bg-danger/15 text-danger border-danger/20"
+        : "bg-warn/15 text-warn border-warn/20";
   return (
-    <span className={`w-fit rounded-md px-2 py-1 text-xs font-semibold uppercase ${color}`}>
+    <Badge variant="outline" className={`uppercase ${variant}`}>
       {status}
-    </span>
+    </Badge>
   );
 }
