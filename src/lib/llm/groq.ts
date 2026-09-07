@@ -34,10 +34,13 @@ export async function chatJson(opts: {
   system: string;
   user: string;
   temperature?: number;
+  /** Preferred model for this call (extract vs match). */
+  model?: string;
 }): Promise<string> {
   const groq = getGroq();
-  const models = [getGroqModel(), ...getGroqFallbackModels()].filter(
-    (m, i, arr) => m && arr.indexOf(m) === i,
+  const preferred = opts.model?.trim();
+  const models = [preferred, getGroqModel(), ...getGroqFallbackModels()].filter(
+    (m, i, arr): m is string => Boolean(m) && arr.indexOf(m) === i,
   );
 
   let lastError: unknown;

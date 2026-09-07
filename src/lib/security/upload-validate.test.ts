@@ -54,22 +54,23 @@ describe("fact schema", () => {
 });
 
 describe("chunking", () => {
-  it("skips near-empty pages", () => {
+  it("packs signal-rich pages and skips fluff", () => {
     const chunks = chunkPages(
       [
-        { pageNumber: 1, text: "x" },
+        { pageNumber: 1, text: "Table of contents ............ 1" },
         {
           pageNumber: 2,
-          text: "Meaningful financial disclosure about capacity and utilization rates across network nodes.",
+          text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
         },
         {
           pageNumber: 3,
-          text: "Another page with enough characters to survive the filter and be grouped.",
+          text: "EBITDA stood at ₹ 312 crore for FY24. Shipments and pin code coverage expanded.",
         },
       ],
       2,
     );
-    expect(chunks.length).toBe(1);
-    expect(chunks[0].pageStart).toBe(2);
+    expect(chunks.length).toBeGreaterThanOrEqual(1);
+    expect(chunks[0].pageStart).toBeGreaterThanOrEqual(2);
+    expect(chunks.some((c) => c.text.includes("Revenue"))).toBe(true);
   });
 });

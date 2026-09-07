@@ -42,13 +42,19 @@ npm test   # unit tests (no API key required)
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `GROQ_API_KEY` | Required for extraction/matching | — |
-| `GROQ_MODEL` | Chat model | `openai/gpt-oss-120b` |
-| `GROQ_FALLBACK_MODELS` | Comma-separated fallbacks on model_not_found | `openai/gpt-oss-20b` |
+| `GROQ_MODEL` | Default / match model | `openai/gpt-oss-120b` |
+| `GROQ_EXTRACT_MODEL` | Cheaper model for bulk extraction | `openai/gpt-oss-20b` |
+| `GROQ_MATCH_MODEL` | Model for ambiguous relation pairs | `openai/gpt-oss-120b` |
+| `GROQ_FALLBACK_MODELS` | Fallbacks on model_not_found | `openai/gpt-oss-20b` |
 | `MAX_UPLOAD_MB` | Upload size cap | `40` |
-| `MAX_PAGES` | Pages processed per PDF | `500` |
-| `CHUNK_PAGES` | Pages per LLM chunk | `3` |
+| `MAX_PAGES` | Pages parsed per PDF | `500` |
+| `CHUNK_PAGES` | Soft max pages packed per extract call | `8` |
+| `CHUNK_CHAR_BUDGET` | Soft max chars per extract call | `12000` |
+| `MAX_EXTRACT_CHUNKS` | Hard cap on extract API calls / PDF | `16` |
+| `MAX_MATCH_PAIRS` | Cap on relation candidates / PDF | `16` |
+| `MATCH_BATCH_SIZE` | Relation pairs per match API call | `6` |
 | `MAX_CONCURRENT_JOBS` | Parallel documents | `1` |
-| `MAX_CONCURRENT_EXTRACTIONS` | Parallel chunk calls | `2` |
+| `MAX_CONCURRENT_EXTRACTIONS` | Parallel extract calls | `4` |
 
 Never commit real keys. Deploy by injecting `GROQ_API_KEY` in the host env.
 
@@ -76,10 +82,11 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/API.md](docs/API.
 
 - **SQLite + job table** instead of Redis so reviewers can run with zero extra services.
 - **Incremental ingest** — new PDFs match against existing facts; no full rebuild.
+- **Cost-aware pipeline** — high-signal page packing, extract-call caps, heuristic relation resolution, batched LLM matching, cheaper model for bulk extraction.
 - **Evolving `fact_type`** strings instead of a fixed ontology.
 - **Content-hash dedupe** so re-uploads are cheap.
 - **Failure journal** as a first-class artifact (assignment asks for an honest failure case).
-- **Hybrid UI**: simple single-column flow; Kokonut-style loader, Bklit-inspired relation bars, light Motion — not a graph-database demo.
+- **Hybrid UI**: simple single-column flow with a document rail and ledger-style facts.
 
 ### Trade-offs
 
