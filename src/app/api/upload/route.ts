@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { getMaxUploadBytes, getUploadDir, resolveUnderRoot } from "@/lib/config";
-import { insertDocument, insertJob } from "@/lib/db/documents";
+import { insertDocument, insertJob, getDocumentByHash, getLatestJobForDocument } from "@/lib/db/documents";
 import { takeToken } from "@/lib/security/rate-limit";
 import {
   assertPdfMime,
@@ -60,6 +60,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const contentHash = createHash("sha256").update(buffer).digest("hex");
+
+  const existing = getDocumentByHash(contentHash);
+  if (existing && (existing.status === "ready" || existing.status === "queued" || existing.status === "processing")) {
+    const existingJob = getLatestJobForDocument(existing.id);
+    return NextResponse.json(
+      {
+        deduped: true,
+        document: {
+          id: existing.id,
+          filename: existing.original_filename,
+          byteSize: existing.byte_size,
+          status: existing.status,
+          contentHash: existing.content_hash,
+        },
+        job: existingJob
+          ? { id: existingJob.id, status: existingJob.status }
+          : null,
+        message: "Identical PDF already in the knowledge layer — skipped reprocessing.",
+      },
+      { status: 200 },
+    );
+  }
+
   const docId = randomUUID();
   const jobId = randomUUID();
   const uploadDir = resolveUnderRoot(getUploadDir());
@@ -68,8 +92,6 @@ export async function POST(req: NextRequest) {
   const storedName = `${docId}.pdf`;
   const storedPath = path.join(uploadDir, storedName);
   fs.writeFileSync(storedPath, buffer);
-
-  const contentHash = createHash("sha256").update(buffer).digest("hex");
 
   const doc = insertDocument({
     id: docId,
@@ -89,6 +111,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(
     {
+      deduped: false,
       document: {
         id: doc.id,
         filename: doc.original_filename,

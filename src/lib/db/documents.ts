@@ -118,6 +118,16 @@ export function getJob(id: string): JobRow | undefined {
   return getDb().prepare("SELECT * FROM jobs WHERE id = ?").get(id) as JobRow | undefined;
 }
 
+export function getDocumentByHash(contentHash: string): DocumentRow | undefined {
+  ensureDb();
+  return getDb()
+    .prepare(
+      `SELECT * FROM documents WHERE content_hash = ? AND status != 'failed'
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+    .get(contentHash) as DocumentRow | undefined;
+}
+
 export function getLatestJobForDocument(documentId: string): JobRow | undefined {
   ensureDb();
   return getDb()
@@ -126,3 +136,4 @@ export function getLatestJobForDocument(documentId: string): JobRow | undefined 
     )
     .get(documentId) as JobRow | undefined;
 }
+
