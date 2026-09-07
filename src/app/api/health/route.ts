@@ -7,8 +7,7 @@ import { getGroqApiKey } from "@/lib/llm/groq";
 export const runtime = "nodejs";
 
 /**
- * Liveness for hosts (Render health checks). Always 200 if the process + DB are up.
- * LLM readiness is reported in the JSON body — do not 503 or Render will kill deploys.
+ * Detailed health (may open SQLite). Prefer /healthz for Render/cron liveness.
  */
 export async function GET() {
   try {
@@ -21,6 +20,14 @@ export async function GET() {
     return NextResponse.json({
       ok: hasKey,
       alive: true,
+      service: "fact-knowledge-layer",
+      dbPath: getDbPath(),
+      dbTime: row.now,
+      llm: {
+        configured: hasKey,
+        model: getGroqModel(),
+        fallbacks: getGroqFallbackModels(),
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";

@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3", "pdfjs-dist"],
+  serverExternalPackages: ["pdfjs-dist"],
   async headers() {
     return [
       {
