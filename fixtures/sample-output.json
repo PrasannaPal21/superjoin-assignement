@@ -1,0 +1,94 @@
+{
+  "note": "Illustrative offline sample for reviewers without a Groq key. Shape matches live API responses; values are representative, not hard-coded runtime answers.",
+  "documents": [
+    {
+      "id": "doc-prospectus",
+      "filename": "01-delhivery-prospectus-2022-excerpt.pdf",
+      "status": "ready",
+      "pageCount": 100
+    },
+    {
+      "id": "doc-ar",
+      "filename": "02-delhivery-annual-report-fy24-excerpt.pdf",
+      "status": "ready",
+      "pageCount": 100
+    },
+    {
+      "id": "doc-earn",
+      "filename": "03-delhivery-q4-fy24-earnings-presentation.pdf",
+      "status": "ready",
+      "pageCount": 27
+    }
+  ],
+  "facts": [
+    {
+      "id": "f1",
+      "documentId": "doc-prospectus",
+      "claim": "Company reported revenue from operations for Fiscal 2021",
+      "rawValue": "4815.04",
+      "unit": "INR crore",
+      "period": "Fiscal 2021",
+      "scope": "consolidated",
+      "entity": "Delhivery Limited",
+      "factType": "revenue",
+      "confidence": 0.86,
+      "evidence": [
+        {
+          "page": 30,
+          "quote": "Revenue from operations … Fiscal 2021"
+        }
+      ]
+    },
+    {
+      "id": "f2",
+      "documentId": "doc-ar",
+      "claim": "Network covered pin codes as of reporting date",
+      "rawValue": "18500+",
+      "unit": "pin codes",
+      "period": "FY24",
+      "scope": "network",
+      "entity": "Delhivery",
+      "factType": "network_coverage",
+      "confidence": 0.8,
+      "evidence": [
+        {
+          "page": 8,
+          "quote": "pin codes"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "r1",
+      "relationType": "corroborates",
+      "rationale": "Both documents describe the same corporate entity and logistics network identity with consistent naming.",
+      "contextTags": ["entity"],
+      "confidence": 0.78,
+      "a": { "id": "f1", "claim": "…" },
+      "b": { "id": "f2", "claim": "…" }
+    },
+    {
+      "id": "r2",
+      "relationType": "reconciled",
+      "rationale": "Numeric KPIs differ because reporting periods and metric definitions are not aligned.",
+      "contextTags": ["time", "scope"],
+      "confidence": 0.74
+    },
+    {
+      "id": "r3",
+      "relationType": "contradicts",
+      "rationale": "Likely conflict when comparing a point-in-time role or figure without adjusting for later events.",
+      "contextTags": ["time"],
+      "confidence": 0.62
+    }
+  ],
+  "failures": [
+    {
+      "stage": "parse",
+      "summary": "Some pages yielded little extractable text",
+      "detail": "Layout-heavy slides or image regions produce sparse pdf.js output.",
+      "suggestion": "Add an OCR lane for low-text pages."
+    }
+  ]
+}
