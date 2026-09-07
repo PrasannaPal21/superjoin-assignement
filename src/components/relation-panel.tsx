@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { RelationOverviewChart } from "@/components/ui/relation-overview-chart";
 
 type Relation = {
   id: string;
@@ -51,95 +48,82 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [filter, refreshKey]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-4xl space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Pairwise links with evidence on both sides and an explicit rationale.
+          Same claim across docs, conflicts, or differences explained by time / scope /
+          units.
         </p>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="h-9 rounded-lg border border-input bg-card px-3 text-sm"
-        >
-          <option value="">All relations</option>
-          <option value="corroborates">Corroborates</option>
-          <option value="contradicts">Contradicts</option>
-          <option value="reconciled">Reconciled</option>
-        </select>
+        <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+          <span>same {counts.corroborates}</span>
+          <span>conflict {counts.contradicts}</span>
+          <span>context {counts.reconciled}</span>
+        </div>
       </div>
 
-      <RelationOverviewChart counts={counts} />
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="h-8 rounded-md border border-input bg-card px-2 text-sm"
+      >
+        <option value="">All</option>
+        <option value="corroborates">Corroborates</option>
+        <option value="contradicts">Contradicts</option>
+        <option value="reconciled">Reconciled</option>
+      </select>
 
-      <ScrollArea className="h-[min(60vh,640px)]">
-        <div className="mt-1 space-y-3 pr-3">
-          {relations.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-8 text-sm text-muted-foreground">
-              Relations appear after two or more documents finish processing.
-            </div>
-          )}
-          {relations.map((r) => (
-            <article
-              key={r.id}
-              className="rounded-xl border border-border bg-card p-4 shadow-sm"
-            >
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <TypeBadge type={r.relationType} />
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  {(r.confidence * 100).toFixed(0)}%
+      {relations.length === 0 && (
+        <p className="py-12 text-center text-sm text-muted-foreground">
+          Process at least two PDFs to see comparisons.
+        </p>
+      )}
+
+      <ul className="space-y-3">
+        {relations.map((r) => (
+          <li key={r.id} className="rounded-md border border-border bg-card p-3">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-mono uppercase">{r.relationType}</span>
+              <span className="text-muted-foreground">
+                {(r.confidence * 100).toFixed(0)}%
+              </span>
+              {r.contextTags.map((t) => (
+                <span key={t} className="rounded bg-muted px-1.5 py-0.5 font-mono">
+                  {t}
                 </span>
-                {r.contextTags.map((t) => (
-                  <Badge key={t} variant="secondary" className="font-mono text-[10px]">
-                    {t}
-                  </Badge>
-                ))}
-              </div>
-              <p className="mb-3 text-sm">{r.rationale}</p>
-              <div className="grid gap-3 md:grid-cols-2">
-                <EvidenceSide side="A" fact={r.a} />
-                <EvidenceSide side="B" fact={r.b} />
-              </div>
-            </article>
-          ))}
-        </div>
-      </ScrollArea>
+              ))}
+            </div>
+            <p className="mb-3 text-sm">{r.rationale}</p>
+            <div className="grid gap-2 md:grid-cols-2">
+              <Side label="A" fact={r.a} />
+              <Side label="B" fact={r.b} />
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function TypeBadge({ type }: { type: string }) {
-  const color =
-    type === "corroborates"
-      ? "bg-ok/15 text-ok border-ok/20"
-      : type === "contradicts"
-        ? "bg-danger/15 text-danger border-danger/20"
-        : "bg-accent text-accent-foreground border-transparent";
-  return (
-    <Badge variant="outline" className={`uppercase ${color}`}>
-      {type}
-    </Badge>
-  );
-}
-
-function EvidenceSide({
-  side,
+function Side({
+  label,
   fact,
 }: {
-  side: string;
+  label: string;
   fact: Relation["a"];
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/40 p-3">
-      <p className="font-mono text-[11px] uppercase text-muted-foreground">
-        {side} · {fact.documentName || "document"}
+    <div className="rounded border border-border bg-muted/40 p-2.5 text-sm">
+      <p className="text-[11px] uppercase text-muted-foreground">
+        {label} · {fact.documentName || "doc"}
       </p>
-      <p className="mt-1 text-sm font-medium">{fact.claim}</p>
+      <p className="mt-1 font-medium">{fact.claim}</p>
       <p className="mt-1 font-mono text-[11px] text-muted-foreground">
         {[fact.rawValue, fact.unit, fact.period, fact.scope].filter(Boolean).join(" · ")}
       </p>
       {fact.evidence && (
-        <blockquote className="mt-2 border-l-2 border-border pl-2 text-xs text-muted-foreground">
-          p.{fact.evidence.page ?? "?"} “{fact.evidence.quote}”
-        </blockquote>
+        <p className="mt-2 text-xs text-muted-foreground">
+          p.{fact.evidence.page ?? "?"} {fact.evidence.quote}
+        </p>
       )}
     </div>
   );

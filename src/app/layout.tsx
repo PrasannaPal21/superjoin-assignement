@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3, IBM_Plex_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const display = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const body = Source_Sans_3({
+const body = IBM_Plex_Sans({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
 });
 
 const mono = IBM_Plex_Mono({
@@ -21,8 +15,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Factlayer",
-  description: "Production fact knowledge layer for grounded PDF extraction and reconciliation.",
+  title: "Fact Knowledge Layer",
+  description: "Extract grounded facts from PDFs and compare them across documents.",
 };
 
 export default function RootLayout({
@@ -32,9 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
-        {children}
-      </body>
+      <body className={`${body.variable} ${mono.variable}`}>{children}</body>
     </html>
   );
 }

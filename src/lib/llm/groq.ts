@@ -1,9 +1,5 @@
 import Groq from "groq-sdk";
-import { config as loadEnv } from "dotenv";
-import path from "path";
 import { getGroqFallbackModels, getGroqModel } from "@/lib/config";
-
-loadEnv({ path: path.resolve(process.cwd(), ".env") });
 
 let client: Groq | null = null;
 
@@ -16,7 +12,7 @@ export function getGroq(): Groq {
   const key = getGroqApiKey();
   if (!key) {
     throw new Error(
-      "GROQ_API_KEY is missing. Set it in .env (local) or your deployment environment, then restart the server.",
+      "GROQ_API_KEY is missing. Set it in .env and restart the server.",
     );
   }
   if (!client) {
@@ -25,7 +21,6 @@ export function getGroq(): Groq {
   return client;
 }
 
-/** Reset cached client after env/config changes (tests / hot reload). */
 export function resetGroqClient(): void {
   client = null;
 }
@@ -65,9 +60,7 @@ export async function chatJson(opts: {
       return content;
     } catch (err) {
       lastError = err;
-      if (isModelNotFound(err) && models.length > 1) {
-        continue;
-      }
+      if (isModelNotFound(err) && models.length > 1) continue;
       throw err;
     }
   }
@@ -77,7 +70,6 @@ export async function chatJson(opts: {
     : new Error("Groq request failed for all configured models");
 }
 
-/** Strip control characters that can confuse parsers or prompt boundaries. */
 export function sanitizeUntrustedText(input: string): string {
   return input
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
