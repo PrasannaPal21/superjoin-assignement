@@ -141,8 +141,8 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     }
 
     updateDocumentStatus(documentId, "ready");
-    completeJob(jobId);
     updateJobProgress(jobId, `done (${factCount} facts)`, 1, 1);
+    completeJob(jobId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "processing failed";
     updateDocumentStatus(documentId, "failed", { error_message: message });
