@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { UploadZone } from "@/components/upload-zone";
+import { GlobalDropZone } from "@/components/global-drop-zone";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { DocumentSidebar } from "@/components/document-sidebar";
 import { FactBrowser } from "@/components/fact-browser";
 import { RelationPanel } from "@/components/relation-panel";
@@ -84,6 +86,9 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen flex-col">
+      {/* Drop PDFs anywhere on the page */}
+      <GlobalDropZone onUploaded={() => bump()} />
+
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-4">
         <div className="flex items-center gap-2.5">
@@ -118,6 +123,7 @@ export function AppShell() {
             />
             {healthOk === false ? "API key missing" : "System healthy"}
           </span>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -217,7 +223,7 @@ function HeroEmptyState() {
         </p>
         <ol className="mx-auto mt-6 max-w-xs space-y-2.5 text-left">
           {[
-            ["Upload PDFs", "Drag files into the panel on the left"],
+            ["Drop PDFs anywhere", "Drag files onto the page or use the panel on the left"],
             ["Watch extraction", "Progress updates live as facts are pulled"],
             ["Explore & compare", "Verify claims, spot conflicts across documents"],
           ].map(([title, desc], i) => (

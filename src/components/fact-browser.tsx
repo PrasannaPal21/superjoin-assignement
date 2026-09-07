@@ -148,7 +148,7 @@ export function FactBrowser({
       {loading && facts.length === 0 && (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="shimmer h-20 rounded-xl" />
+            <div key={i} className="shimmer h-16 rounded-xl" />
           ))}
         </div>
       )}
@@ -159,92 +159,122 @@ export function FactBrowser({
           key={type}
           className="mb-4 overflow-hidden rounded-xl border border-border bg-card"
         >
-          <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2 backdrop-blur-sm">
             <h2 className="text-xs font-semibold capitalize tracking-wide text-foreground">
               {prettyType(type)}
             </h2>
             <span className="text-[11px] tabular text-muted-foreground">{rows.length}</span>
           </div>
 
-          <ul className="divide-y divide-border/70">
+          <ul className="divide-y divide-border/60">
             {rows.map((f) => {
               const open = openId === f.id;
               const evs = f.evidence.length > 0 ? f.evidence : [];
+              const firstPage = evs[0]?.page ?? null;
+              // Hide scope when it just repeats the group heading (common LLM output).
+              const scopeIsRedundant =
+                !f.scope || f.scope.toLowerCase() === type.toLowerCase();
               return (
                 <li key={f.id} className={cn(open && "bg-muted/30")}>
                   <button
                     type="button"
                     onClick={() => setOpenId(open ? null : f.id)}
-                    className="grid w-full grid-cols-[130px_110px_1fr_auto] items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 max-md:grid-cols-[1fr_auto]"
+                    className="grid w-full grid-cols-[minmax(130px,180px)_1fr_auto_16px] items-center gap-x-4 gap-y-1 px-4 py-2.5 text-left transition-colors hover:bg-muted/40 max-md:grid-cols-[1fr_16px]"
                     aria-expanded={open}
+                    title={f.claim}
                   >
-                    {/* Value + confidence */}
-                    <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-semibold tabular text-foreground">
+                    {/* Value — the anchor of the row */}
+                    <span className="min-w-0 max-md:col-span-1">
+                      <span className="block truncate text-[15px] font-semibold tabular leading-tight text-foreground">
                         {displayValue(f)}
                       </span>
                       <ConfidenceBar value={f.confidence} />
                     </span>
 
-                    {/* Period / scope */}
-                    <span className="min-w-0 text-xs text-muted-foreground">
-                      <span className="block truncate font-medium text-foreground/80">
-                        {f.period || "—"}
-                      </span>
-                      {f.scope && (
-                        <span className="mt-0.5 block truncate font-mono text-[10px]">
-                          {f.scope}
-                        </span>
-                      )}
-                    </span>
-
-                    {/* Claim + doc chip (Perplexity-style evidence chip) */}
-                    <span className="min-w-0">
-                      <span className="line-clamp-2 block text-sm leading-snug text-foreground">
+                    {/* Context — one line of claim, one line of qualifiers */}
+                    <span className="min-w-0 max-md:order-3 max-md:col-span-2">
+                      <span className="block truncate text-[13px] leading-snug text-foreground/75">
                         {f.claim}
                       </span>
-                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {f.documentName && (
-                          <span className="inline-flex max-w-[220px] items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                            <span className="truncate">{shortDocName(f.documentName)}</span>
-                            {evs[0]?.page != null && (
-                              <span className="font-mono text-[10px] text-accent-foreground">
-                                p.{evs[0].page}
-                              </span>
-                            )}
-                          </span>
+                      <span className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        {f.period && (
+                          <span className="max-w-[280px] truncate">{f.period}</span>
+                        )}
+                        {!scopeIsRedundant && (
+                          <span className="truncate font-mono text-[10px]">{f.scope}</span>
                         )}
                       </span>
                     </span>
 
+                    {/* Source — quiet, right-aligned */}
+                    <span className="hidden w-44 items-center justify-end gap-1.5 text-right sm:flex max-md:hidden">
+                      {f.documentName && (
+                        <span
+                          className="truncate font-mono text-[11px] text-muted-foreground"
+                          title={f.documentName}
+                        >
+                          {shortDocName(f.documentName)}
+                        </span>
+                      )}
+                      {firstPage != null && (
+                        <span className="shrink-0 rounded bg-accent px-1 py-px font-mono text-[10px] font-medium text-accent-foreground">
+                          p.{firstPage}
+                        </span>
+                      )}
+                    </span>
+
                     <ChevronDown
                       className={cn(
-                        "mt-1 size-4 shrink-0 text-muted-foreground transition-transform",
+                        "size-4 shrink-0 text-muted-foreground/60 transition-transform max-md:row-start-1 max-md:col-start-2",
                         open && "rotate-180",
                       )}
                     />
                   </button>
 
-                  {/* Evidence panel */}
-                  {open && evs.length > 0 && (
-                    <div className="animate-rise border-t border-border/60 bg-muted/20 px-4 py-3 max-md:mx-4 max-md:mb-3 max-md:rounded-lg">
-                      <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        <Quote className="size-3" /> Evidence from the source
-                      </p>
-                      <ul className="space-y-2">
-                        {evs.map((e, i) => (
-                          <li key={i} className="flex gap-3">
-                            {e.page != null && (
-                              <span className="mt-px shrink-0 rounded bg-accent px-1.5 py-0.5 font-mono text-[10px] font-medium text-accent-foreground">
-                                p.{e.page}
-                              </span>
-                            )}
-                            <p className="border-l-2 border-accent pl-2.5 text-xs leading-relaxed text-foreground/80">
-                              “{e.quote}”
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Detail panel — everything that didn't fit in one line */}
+                  {open && (
+                    <div className="animate-rise space-y-3 border-t border-border/60 bg-muted/20 px-4 py-3 max-md:mx-4 max-md:mb-3 max-md:rounded-lg">
+                      <p className="text-sm leading-relaxed text-foreground/90">{f.claim}</p>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {f.entity && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                            {f.entity}
+                          </span>
+                        )}
+                        {f.period && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                            {f.period}
+                          </span>
+                        )}
+                        {f.scope && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                            {f.scope}
+                          </span>
+                        )}
+                      </div>
+
+                      {evs.length > 0 && (
+                        <div>
+                          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            <Quote className="size-3" /> Evidence from the source
+                          </p>
+                          <ul className="space-y-2">
+                            {evs.map((e, i) => (
+                              <li key={i} className="flex gap-3">
+                                {e.page != null && (
+                                  <span className="mt-px shrink-0 rounded bg-accent px-1.5 py-0.5 font-mono text-[10px] font-medium text-accent-foreground">
+                                    p.{e.page}
+                                  </span>
+                                )}
+                                <p className="border-l-2 border-accent pl-2.5 text-xs leading-relaxed text-foreground/80">
+                                  “{e.quote}”
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
                 </li>
@@ -256,7 +286,7 @@ export function FactBrowser({
 
       {facts.length > 0 && (
         <p className="pb-2 text-center text-[11px] text-muted-foreground">
-          Click any fact to see the exact quote it came from.
+          Click any fact for the full claim and its source quotes.
         </p>
       )}
     </div>
@@ -268,13 +298,13 @@ function ConfidenceBar({ value }: { value: number }) {
   const color = v >= 0.8 ? "bg-ok" : v >= 0.5 ? "bg-warn" : "bg-danger";
   return (
     <span className="mt-1.5 flex items-center gap-1.5">
-      <span className="h-1 w-8 overflow-hidden rounded-full bg-muted">
+      <span className="h-1 w-10 overflow-hidden rounded-full bg-muted">
         <span
           className={cn("block h-full rounded-full", color)}
           style={{ width: `${Math.round(v * 100)}%` }}
         />
       </span>
-      <span className="text-[10px] tabular text-muted-foreground">
+      <span className="text-[10px] tabular text-muted-foreground/80">
         {Math.round(v * 100)}%
       </span>
     </span>
