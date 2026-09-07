@@ -1,4 +1,5 @@
 import { chatJson, sanitizeUntrustedText } from "./groq";
+import { parseJsonWithRepair } from "./json-repair";
 import { ExtractionResultSchema, type ExtractionResult } from "./schemas";
 
 const SYSTEM = `You extract grounded facts from PDF text excerpts for a fact knowledge layer.
@@ -13,12 +14,34 @@ Rules:
 - If nothing useful is present, return { "facts": [], "notes": "..." }.
 - evidenceQuote must be copied from the excerpt, not paraphrased.`;
 
-export async function extractFactsFromChunk(chunkText: string): Promise<ExtractionResult> {
+async function once(chunkText: string): Promise<ExtractionResult> {
   const safe = sanitizeUntrustedText(chunkText);
   const raw = await chatJson({
     system: SYSTEM,
     user: `Extract facts from this excerpt:\n\n${safe}`,
   });
-  const parsed = JSON.parse(raw);
+  const parsed = parseJsonWithRepair(raw);
   return ExtractionResultSchema.parse(parsed);
+}
+
+export async function extractFactsFromChunk(chunkText: string): Promise<ExtractionResult> {
+  try {
+    return await once(chunkText);
+  } catch (firstErr) {
+    // One retry with a stricter reminder — common when the model drifts off-schema
+    try {
+      const safe = sanitizeUntrustedText(chunkText);
+      const raw = await chatJson({
+        system: SYSTEM + "\nRespond with ONLY valid minified JSON. No markdown.",
+        user: `Extract facts. Previous parse failed. Excerpt:\n\n${safe}`,
+        temperature: 0,
+      });
+      const parsed = parseJsonWithRepair(raw);
+      return ExtractionResultSchema.parse(parsed);
+    } catch {
+      throw firstErr instanceof Error
+        ? firstErr
+        : new Error("Fact extraction failed after retry");
+    }
+  }
 }
