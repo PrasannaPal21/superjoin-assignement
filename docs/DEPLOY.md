@@ -1,6 +1,6 @@
 # Deployment guide
 
-This project is a **single Next.js app**: the UI and the API live together. You do **not** deploy a separate frontend and backend unless you choose to split later.
+This project is a **single Next.js app** (UI + API together). One Render Web Service is enough.
 
 ```
 Browser  →  Next.js (pages + /api/*)  →  SQLite + uploads on disk  →  Groq
@@ -8,155 +8,124 @@ Browser  →  Next.js (pages + /api/*)  →  SQLite + uploads on disk  →  Groq
 
 ---
 
-## Recommended: Render Web Service (UI + API together)
+## Render Free tier — exact form settings
 
-Best fit for “backend that must stay warm” + one URL for reviewers.
+Free instances **do not support persistent disks**. That is fine for the assignment if you accept:
 
-### 1. Push to GitHub
+- SQLite + uploaded PDFs live on **ephemeral** disk  
+- Data is **wiped** on redeploy / sleep recycle  
+- Re-upload starter PDFs after a cold recycle when demoing live  
 
-Public repo (or shared with Superjoin). Do not commit `.env`.
+Paid plans ($7+) unlock disks if you need persistence later.
 
-### 2. Create a Web Service
+### Fields to set
 
-1. [Render Dashboard](https://dashboard.render.com) → **New** → **Web Service**
-2. Connect the GitHub repo
-3. Settings:
+| Field | Use this |
+|-------|----------|
+| Language | Node |
+| Branch | `main` |
+| Region | Closest to you (e.g. Singapore) |
+| Root Directory | *(leave empty)* |
+| Build Command | `npm install && npm run build` |
+| Start Command | `npm start` |
+| Compute | **Free** is OK for submission |
+| Health Check Path | `/healthz` **or** `/api/health` (both work) |
+| Auto-Deploy | On Commit |
 
-| Setting | Value |
-|---------|--------|
-| Runtime | Node |
-| Build command | `npm install && npm run build` |
-| Start command | `npm start` |
-| Instance | Free or Starter |
+### Environment variables (Free tier)
 
-`better-sqlite3` needs a native compile during `npm install` — Render’s Node image handles this.
-
-### 3. Environment variables
-
-In Render → Environment:
+**Do set**
 
 ```
-GROQ_API_KEY=your_key_here
+NODE_VERSION=20
+GROQ_API_KEY=...your key...
 GROQ_MODEL=openai/gpt-oss-120b
 GROQ_EXTRACT_MODEL=openai/gpt-oss-20b
 GROQ_MATCH_MODEL=openai/gpt-oss-120b
-NODE_VERSION=20
+GROQ_FALLBACK_MODELS=openai/gpt-oss-20b
 ```
 
-Optional knobs (same as `.env.example`): `MAX_EXTRACT_CHUNKS`, `CHUNK_PAGES`, etc.
+**Use these lighter knobs on 512 MB RAM** (avoids OOM on big PDFs):
 
-### 4. Persistent disk (important)
+```
+MAX_UPLOAD_MB=25
+MAX_PAGES=120
+CHUNK_PAGES=8
+CHUNK_CHAR_BUDGET=10000
+MAX_EXTRACT_CHUNKS=12
+MAX_MATCH_PAIRS=12
+MATCH_BATCH_SIZE=6
+MAX_CONCURRENT_JOBS=1
+MAX_CONCURRENT_EXTRACTIONS=1
+DATABASE_PATH=data/factlayer.db
+UPLOAD_DIR=data/uploads
+```
 
-Free/ephemeral disks **wipe SQLite and uploads** on redeploy/restart.
+**Do not** set `DATABASE_PATH=/var/data/...` on Free — there is no mounted disk; relative `data/...` paths are correct.
 
-1. Render → your service → **Disks** → Add disk  
-2. Mount path: `/var/data`  
-3. Add env:
+### After deploy
+
+```bash
+curl https://YOUR-SERVICE.onrender.com/healthz
+curl https://YOUR-SERVICE.onrender.com/api/health
+```
+
+Both should return JSON with `"alive": true`. Open the site URL and upload a PDF.
+
+---
+
+## Keep-alive cron (Free tier sleep)
+
+Free services sleep after ~15 minutes idle.
+
+**Point the cron at:**
+
+```text
+GET https://YOUR-SERVICE.onrender.com/healthz
+```
+
+(or `/api/health` — same handler)
+
+Every **10–12 minutes**.
+
+Easiest: [cron-job.org](https://cron-job.org) → create job with that URL.
+
+Render Cron Job alternative:
+
+```bash
+curl -fsS https://YOUR-SERVICE.onrender.com/healthz
+```
+
+Schedule: `*/10 * * * *`
+
+---
+
+## If you upgrade later (paid + disk)
+
+1. Pick a paid compute plan that lists **persistent disks**
+2. Add disk mount `/var/data`
+3. Change env:
 
 ```
 DATABASE_PATH=/var/data/factlayer.db
 UPLOAD_DIR=/var/data/uploads
 ```
 
-Without a disk, the app still runs, but knowledge resets when the instance recycles.
-
-### 5. Deploy
-
-Render builds and serves `https://YOUR-SERVICE.onrender.com` — that one URL is both frontend and API.
-
-Smoke test:
-
-```bash
-curl https://YOUR-SERVICE.onrender.com/api/health
-```
+4. Redeploy
 
 ---
 
-## Keep-alive cron (stop Render free-tier spin-down)
+## Vercel?
 
-Free Render web services sleep after ~15 minutes of idle traffic. A scheduled **GET** to your health endpoint keeps the process warm.
-
-### Where to point the cron
-
-```
-https://YOUR-SERVICE.onrender.com/api/health
-```
-
-Method: **GET**  
-Interval: every **10–14 minutes** (safer than 15+)
-
-That path is cheap (DB ping + config check) and already used by the UI.
-
-### Option A — cron-job.org (simplest)
-
-1. Sign up at [https://cron-job.org](https://cron-job.org)
-2. Create job:
-   - URL: `https://YOUR-SERVICE.onrender.com/api/health`
-   - Schedule: every 10 minutes
-   - Enable the job
-3. Confirm execution history shows HTTP 200
-
-### Option B — Render Cron Job
-
-1. Render → **New** → **Cron Job**
-2. Schedule: `*/10 * * * *` (every 10 minutes)
-3. Command:
-
-```bash
-curl -fsS https://YOUR-SERVICE.onrender.com/api/health
-```
-
-Use the **same** public URL as your Web Service. The cron does not replace the web service — it only pings it.
-
-### Option C — GitHub Actions (optional)
-
-```yaml
-# .github/workflows/keepalive.yml
-name: keepalive
-on:
-  schedule:
-    - cron: "*/12 * * * *"
-  workflow_dispatch:
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - run: curl -fsS "${{ secrets.APP_URL }}/api/health"
-```
-
-Store `APP_URL=https://YOUR-SERVICE.onrender.com` as a repo secret (no trailing slash).
-
----
-
-## Alternative: Vercel (frontend-friendly, caveats)
-
-Vercel is excellent for Next.js UI, but:
-
-- **Ephemeral filesystem** — SQLite + local uploads do **not** persist well on serverless
-- Long PDF jobs can hit **function timeouts**
-- Native modules like `better-sqlite3` are awkward on serverless
-
-Use Vercel only if you also move storage to Postgres + object storage (S3). For this assignment prototype, **Render Web Service + disk** is the practical choice.
-
-If you still want Vercel for a static preview only, do not expect the full pipeline to survive cold starts without a real database.
-
----
-
-## “Separate frontend and backend?”
-
-| Approach | When |
-|----------|------|
-| **One Render Web Service** (this repo) | Recommended for submission |
-| Split later | Next.js UI on Vercel + API worker on Render with shared Postgres/Redis |
-
-Today the API routes (`/api/upload`, `/api/facts`, …) are part of the same Next process as the UI. Deploy once.
+Not recommended for this assignment prototype: no durable local SQLite/uploads and short serverless timeouts. Prefer Render Web Service.
 
 ---
 
 ## Post-deploy checklist
 
-- [ ] `/api/health` returns `ok: true` and `llm.configured: true`
-- [ ] Upload a small PDF from the UI
-- [ ] Document reaches **Ready**
-- [ ] Cron hits `/api/health` every ~10 minutes
-- [ ] Put the live URL in README **Additional Notes**
+- [ ] `/healthz` returns 200
+- [ ] UI loads
+- [ ] Upload starter PDF → reaches Ready (may take a few minutes on Free CPU)
+- [ ] Cron hitting `/healthz` every ~10 minutes
+- [ ] Live URL noted in README Additional Notes
+- [ ] After a redeploy, re-upload demo PDFs (Free = ephemeral storage)

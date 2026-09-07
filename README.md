@@ -112,7 +112,7 @@ More detail: [ARCHITECTURE](docs/ARCHITECTURE.md) · [API](docs/API.md) · [SECU
 ## Additional Notes
 
 - Security: [docs/SECURITY.md](docs/SECURITY.md)
-- Deploy (Render + keep-alive cron): [docs/DEPLOY.md](docs/DEPLOY.md)
+- Deploy (Render Free + keep-alive): [docs/DEPLOY.md](docs/DEPLOY.md)
 - Submit form prep: [docs/SUBMIT.md](docs/SUBMIT.md)
 - Offline sample: [fixtures/sample-output.json](fixtures/sample-output.json)
 - Starter corpus: [`starter-datasets/`](starter-datasets/)
