@@ -1,14 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { formatBytes } from "@/lib/format";
+import { isPdf, uploadPdf, type UploadResult } from "@/lib/upload-client";
 import { FilePlus2, Loader2, TriangleAlert, UploadCloud } from "lucide-react";
-
-type UploadResult = {
-  document: { id: string; filename: string };
-  deduped?: boolean;
-};
 
 export function UploadZone({
   onUploaded,
@@ -18,68 +13,39 @@ export function UploadZone({
   compact?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUploaded, setLastUploaded] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const send = useCallback(
-    async (file: File) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const body = new FormData();
-        body.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Upload failed");
-        setLastUploaded(file.name);
-        onUploaded?.(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [onUploaded],
-  );
-
-  const handleFiles = useCallback(
-    (files: FileList | null) => {
-      const pdfs = Array.from(files ?? []).filter(
-        (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
-      );
-      if (pdfs.length === 0) {
-        setError("Please choose PDF files.");
-        return;
-      }
+  async function handleFiles(files: FileList | null) {
+    const pdfs = Array.from(files ?? []).filter(isPdf);
+    if (pdfs.length === 0) {
+      setError("Please choose PDF files.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
       // Sequential keeps MAX_CONCURRENT_JOBS honest; uploads are fast, processing queues.
-      void (async () => {
-        for (const f of pdfs) await send(f);
-      })();
-    },
-    [send],
-  );
+      for (const f of pdfs) {
+        const result = await uploadPdf(f);
+        setLastUploaded(f.name);
+        onUploaded?.(result);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div>
       <label
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          if (!busy) handleFiles(e.dataTransfer.files);
-        }}
         className={cn(
           "group flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-muted/40 px-3 text-center transition-colors",
           compact ? "py-3" : "py-5",
-          dragOver
-            ? "border-primary/60 bg-accent/60"
-            : "border-border hover:border-primary/40 hover:bg-muted",
+          "border-border hover:border-primary/40 hover:bg-muted",
         )}
       >
         {busy ? (
@@ -89,18 +55,11 @@ export function UploadZone({
           </>
         ) : (
           <>
-            <UploadCloud
-              className={cn(
-                "size-5 text-muted-foreground transition-colors group-hover:text-foreground",
-                dragOver && "text-accent-foreground",
-              )}
-            />
-            <span className="text-xs font-medium text-foreground">
-              {dragOver ? "Drop PDFs to add" : "Add documents"}
-            </span>
+            <UploadCloud className="size-5 text-muted-foreground transition-colors group-hover:text-foreground" />
+            <span className="text-xs font-medium text-foreground">Add documents</span>
             {!compact && (
               <span className="text-[11px] text-muted-foreground">
-                Drag & drop or click · PDF up to {formatBytes(40 * 1024 * 1024)}
+                Click to browse — or drop PDFs anywhere on this page
               </span>
             )}
           </>
@@ -113,7 +72,7 @@ export function UploadZone({
           className="hidden"
           disabled={busy}
           onChange={(e) => {
-            handleFiles(e.target.files);
+            void handleFiles(e.target.files);
             e.target.value = "";
           }}
         />
