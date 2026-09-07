@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { getMaxConcurrentJobs } from "@/lib/config";
+import { getMaxConcurrentExtractions, getMaxConcurrentJobs } from "@/lib/config";
 import { getDocument, updateDocumentStatus } from "@/lib/db/documents";
 import {
   claimNextJob,
@@ -15,8 +15,8 @@ import {
   extractAndStoreChunkFacts,
   persistChunk,
 } from "@/lib/pipeline/extract-stage";
+import { mapPool } from "@/lib/pipeline/pool";
 
-// Matching is wired in a later commit; keep a soft hook so the worker stays stable.
 let matchNewDocumentFacts: (documentId: string) => Promise<void> = async () => {
   /* no-op until matcher lands */
 };
@@ -32,9 +32,7 @@ let ticking = false;
 export function kickWorker(): void {
   if (ticking) return;
   ticking = true;
-  // Ensure matcher is registered (side-effect import)
   void import("@/lib/pipeline/match");
-  // Fire-and-forget; Next route handlers shouldn't block on full pipelines
   setTimeout(() => {
     void runWorkerLoop().finally(() => {
       ticking = false;
@@ -94,29 +92,38 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       return;
     }
 
-    let factCount = 0;
-    for (let i = 0; i < chunks.length; i++) {
-      updateJobProgress(jobId, "extracting", i + 1, chunks.length);
-      const chunk = chunks[i];
-      const chunkId = persistChunk(documentId, chunk);
-      try {
-        factCount += await extractAndStoreChunkFacts({
-          documentId,
-          chunkId,
-          chunk,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "extract failed";
-        insertFailure({
-          id: randomUUID(),
-          document_id: documentId,
-          stage: "extract",
-          summary: `Chunk ${chunk.pageStart}-${chunk.pageEnd} extraction failed`,
-          detail: message,
-          suggestion: "Retry with a lower temperature or smaller chunk size.",
-        });
-      }
-    }
+    let completed = 0;
+    const extractionResults = await mapPool(
+      chunks,
+      getMaxConcurrentExtractions(),
+      async (chunk) => {
+        const chunkId = persistChunk(documentId, chunk);
+        try {
+          const n = await extractAndStoreChunkFacts({
+            documentId,
+            chunkId,
+            chunk,
+          });
+          completed += 1;
+          updateJobProgress(jobId, "extracting", completed, chunks.length);
+          return n;
+        } catch (err) {
+          completed += 1;
+          updateJobProgress(jobId, "extracting", completed, chunks.length);
+          const message = err instanceof Error ? err.message : "extract failed";
+          insertFailure({
+            id: randomUUID(),
+            document_id: documentId,
+            stage: "extract",
+            summary: `Chunk ${chunk.pageStart}-${chunk.pageEnd} extraction failed`,
+            detail: message,
+            suggestion: "Retry with a lower temperature or smaller chunk size.",
+          });
+          return 0;
+        }
+      },
+    );
+    const factCount = extractionResults.reduce((a, b) => a + b, 0);
 
     updateJobProgress(jobId, "matching", 0, 1);
     try {
