@@ -18,3 +18,9 @@ export function assertPdfMime(mime: string | null | undefined): boolean {
     normalized === "application/octet-stream"
   );
 }
+
+/** PDF files start with %PDF- */
+export function hasPdfMagicBytes(buf: Buffer): boolean {
+  if (buf.length < 5) return false;
+  return buf.subarray(0, 5).toString("utf8") === "%PDF-";
+}

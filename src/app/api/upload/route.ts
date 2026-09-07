@@ -7,6 +7,7 @@ import { insertDocument, insertJob } from "@/lib/db/documents";
 import { takeToken } from "@/lib/security/rate-limit";
 import {
   assertPdfMime,
+  hasPdfMagicBytes,
   looksLikePdfFilename,
   sanitizeFilename,
 } from "@/lib/security/upload-validate";
@@ -52,6 +53,13 @@ export async function POST(req: NextRequest) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!hasPdfMagicBytes(buffer)) {
+    return NextResponse.json(
+      { error: "File content is not a valid PDF (magic bytes check failed)" },
+      { status: 400 },
+    );
+  }
+
   const docId = randomUUID();
   const jobId = randomUUID();
   const uploadDir = resolveUnderRoot(getUploadDir());
