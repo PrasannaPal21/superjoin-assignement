@@ -11,11 +11,16 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "groq-sdk": "^1.6.0",
+    "lucide-react": "^1.41.0",
+    "motion": "^13.2.0",
     "next": "15.5.25",
     "pdfjs-dist": "^6.3.289",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tailwind-merge": "^3.6.0",
     "uuid": "^14.0.2",
     "zod": "^4.5.4"
   },
