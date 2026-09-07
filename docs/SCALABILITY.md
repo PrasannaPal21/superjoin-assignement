@@ -2,10 +2,11 @@
 
 ## What works today
 
-- **Large PDFs**: page capping (`MAX_PAGES`), chunking, progress checkpoints, concurrent extraction pool bounded by `MAX_CONCURRENT_EXTRACTIONS`.
+- **Large PDFs**: page capping (`MAX_PAGES`), signal-aware packing, `MAX_EXTRACT_CHUNKS`, progress checkpoints, concurrent extract pool.
 - **Many PDFs**: incremental matching — new docs compare to existing facts only.
 - **Evolving schema**: `fact_type` is a free string; UI filters grow from distinct DB values.
 - **Idempotent re-upload**: SHA-256 content hash dedupe avoids rebuilds.
+- **Cost controls**: cheaper extract model, heuristic relation short-circuit, batched match LLM calls (`MATCH_BATCH_SIZE`).
 
 ## Bottlenecks
 
