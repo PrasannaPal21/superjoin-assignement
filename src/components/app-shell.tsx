@@ -5,12 +5,14 @@ import { UploadPanel } from "@/components/upload-panel";
 import { DocumentList } from "@/components/document-list";
 import { FactBrowser } from "@/components/fact-browser";
 import { RelationPanel } from "@/components/relation-panel";
+import { DemoCasesPanel } from "@/components/demo-cases-panel";
+import { FailureJournal } from "@/components/failure-journal";
 
 export function AppShell() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-6 py-10">
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-8 px-6 py-10 pb-16">
       <header className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
           Fact Knowledge Layer
@@ -28,6 +30,8 @@ export function AppShell() {
       <DocumentList refreshKey={refreshKey} />
       <FactBrowser refreshKey={refreshKey} />
       <RelationPanel refreshKey={refreshKey} />
+      <DemoCasesPanel refreshKey={refreshKey} />
+      <FailureJournal refreshKey={refreshKey} />
     </main>
   );
 }
