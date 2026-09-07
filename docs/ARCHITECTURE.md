@@ -2,18 +2,18 @@
 
 ## Goal
 
-Turn uploaded PDFs into a **fact knowledge layer**: grounded claims with evidence, then cross-document relations (`corroborates`, `contradicts`, `reconciled`).
+Turn uploaded PDFs into a **fact knowledge layer**: grounded claims with evidence, then cross-document relations (`corroborates` / Agrees, `contradicts` / Conflicts, `reconciled` / Different context).
 
-The design is document-agnostic. Nothing in the extractor hard-codes Delhivery filenames, metrics, or schemas. New PDFs extend the layer incrementally.
+Document-agnostic: no hard-coded company facts, filenames, or schemas. New PDFs extend the layer incrementally.
 
 ## Components
 
 ```
 UI (Next.js) → API routes → SQLite job queue → in-process worker
                                       ↓
-                         parse → chunk → Groq extract → match
+              parse → signal-aware chunk → Groq extract → match
                                       ↓
-                              facts + evidence + relations
+                       facts + evidence + relations
 ```
 
 ### Storage (SQLite)
@@ -28,27 +28,26 @@ UI (Next.js) → API routes → SQLite job queue → in-process worker
 | `relations` | Pairwise cross-doc links |
 | `failures` | Honest failure journal |
 
-SQLite keeps local setup zero-ops. Schema is relational and maps cleanly to Postgres later (see `SCALABILITY.md`).
+Zero-ops locally; schema maps cleanly to Postgres later ([SCALABILITY.md](SCALABILITY.md)).
 
 ### Pipeline stages
 
-1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 hash.
-2. **Parse** — pdf.js per-page text. Image-only pages are recorded in the failure journal (no OCR in v1).
-3. **Chunk** — contiguous page groups (`CHUNK_PAGES`, default 3) with a soft character cap.
-4. **Extract** — Groq JSON extraction with schema validation, JSON repair, and one retry.
-5. **Match** — candidate pairs via `match_key` + claim similarity, then LLM classification.
-6. **Persist relations** — only non-`unrelated` outcomes.
+1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 hash (dedupe).
+2. **Parse** — pdf.js per-page text. Sparse/image pages land in the failure journal (no OCR in v1).
+3. **Chunk** — high-signal pages packed by page/char budget (`CHUNK_PAGES`, `CHUNK_CHAR_BUDGET`), capped by `MAX_EXTRACT_CHUNKS`.
+4. **Extract** — Groq JSON (`GROQ_EXTRACT_MODEL`, default cheaper 20b) with Zod + JSON repair + one retry; max ~12 facts / chunk.
+5. **Match** — candidate pairs (`match_key` + similarity), capped by `MAX_MATCH_PAIRS`.
+6. **Classify** — heuristics for clear numeric/period cases; batched LLM for the rest (`MATCH_BATCH_SIZE`).
+7. **Persist** — only non-`unrelated` relations.
 
 New documents match **against existing facts only**. Older documents are not re-extracted.
 
 ### LLM boundary
 
 - Provider: Groq (OpenAI-compatible).
-- PDF text is treated as **untrusted data** (prompt-injection hygiene).
+- PDF text treated as **untrusted data**.
 - Structured outputs validated with Zod.
 
 ### UI
 
-Single-page app: upload → documents → facts → relations → demo cases → failure journal.
-
-Visual pieces borrow patterns from Kokonut-style loaders, Bklit-style overview bars, and light Motion accents — without turning the page into a dashboard collage.
+Document rail + **Facts** (ledger) / **Compare** (plain-language relations) / **Issues** (demo coverage + pipeline log).
