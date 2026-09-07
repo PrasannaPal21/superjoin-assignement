@@ -83,6 +83,10 @@ export async function POST(req: NextRequest) {
 
   const job = insertJob({ id: jobId, document_id: docId });
 
+  // Start background processing without blocking the response
+  const { kickWorker } = await import("@/lib/pipeline/worker");
+  kickWorker();
+
   return NextResponse.json(
     {
       document: {
