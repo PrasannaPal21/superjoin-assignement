@@ -21,14 +21,6 @@ export async function GET() {
     return NextResponse.json({
       ok: hasKey,
       alive: true,
-      service: "fact-knowledge-layer",
-      dbPath: getDbPath(),
-      dbTime: row.now,
-      llm: {
-        configured: hasKey,
-        model: getGroqModel(),
-        fallbacks: getGroqFallbackModels(),
-      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
