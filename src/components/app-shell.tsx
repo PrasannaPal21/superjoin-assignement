@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UploadPanel } from "@/components/upload-panel";
 import { DocumentList } from "@/components/document-list";
+import { FactBrowser } from "@/components/fact-browser";
 
 export function AppShell() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -24,6 +25,7 @@ export function AppShell() {
 
       <UploadPanel onUploaded={() => setRefreshKey((k) => k + 1)} />
       <DocumentList refreshKey={refreshKey} />
+      <FactBrowser refreshKey={refreshKey} />
     </main>
   );
 }
