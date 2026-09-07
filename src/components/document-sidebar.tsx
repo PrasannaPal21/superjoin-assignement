@@ -8,7 +8,6 @@ type Doc = {
   filename: string;
   status: string;
   pageCount: number | null;
-  byteSize: number;
   errorMessage: string | null;
 };
 
@@ -19,7 +18,7 @@ export function DocumentSidebar({
 }: {
   refreshKey?: number;
   selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  onSelect: (id: string | null, name: string | null) => void;
 }) {
   const [docs, setDocs] = useState<Doc[]>([]);
 
@@ -37,43 +36,33 @@ export function DocumentSidebar({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between px-3 py-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Documents
-        </span>
-        {selectedId && (
-          <button
-            type="button"
-            className="text-[11px] text-muted-foreground hover:text-foreground"
-            onClick={() => onSelect(null)}
-          >
-            Clear filter
-          </button>
-        )}
+      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Documents
       </div>
-      <ul className="flex-1 overflow-auto px-2 pb-3">
+      <ul className="flex-1 space-y-0.5 overflow-auto px-2 pb-3">
         {docs.length === 0 && (
-          <li className="px-2 py-6 text-center text-xs text-muted-foreground">
-            No PDFs yet
+          <li className="px-2 py-8 text-center text-xs text-muted-foreground">
+            Add a PDF to begin extraction.
           </li>
         )}
         {docs.map((d) => {
           const active = selectedId === d.id;
+          const short = shortenName(d.filename);
           return (
             <li key={d.id}>
               <button
                 type="button"
-                onClick={() => onSelect(d.id)}
+                onClick={() => onSelect(active ? null : d.id, active ? null : d.filename)}
                 className={cn(
-                  "mb-1 w-full rounded-md px-2 py-2 text-left text-sm hover:bg-muted",
-                  active && "bg-muted",
+                  "w-full rounded-md px-2 py-2 text-left hover:bg-muted",
+                  active && "bg-accent text-accent-foreground",
                 )}
+                title={d.filename}
               >
-                <div className="truncate font-medium">{d.filename}</div>
-                <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <StatusDot status={d.status} />
-                  <span className="uppercase">{d.status}</span>
-                  {d.pageCount != null && <span>· {d.pageCount}p</span>}
+                <div className="truncate text-[13px] font-medium leading-snug">{short}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <StatusLabel status={d.status} />
+                  {d.pageCount != null && <span>· {d.pageCount} pages</span>}
                 </div>
                 {d.errorMessage && (
                   <p className="mt-1 line-clamp-2 text-[11px] text-destructive">
@@ -85,16 +74,25 @@ export function DocumentSidebar({
           );
         })}
       </ul>
+      <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
+        Click a document to filter facts from it.
+      </p>
     </div>
   );
 }
 
-function StatusDot({ status }: { status: string }) {
-  const color =
-    status === "ready"
-      ? "bg-ok"
-      : status === "failed"
-        ? "bg-danger"
-        : "bg-warn";
-  return <span className={cn("inline-block h-1.5 w-1.5 rounded-full", color)} />;
+function shortenName(name: string): string {
+  return name
+    .replace(/\.pdf$/i, "")
+    .replace(/^\d+-/, "")
+    .replace(/-/g, " ");
+}
+
+function StatusLabel({ status }: { status: string }) {
+  if (status === "ready") return <span className="text-ok">Ready</span>;
+  if (status === "failed") return <span className="text-danger">Failed</span>;
+  if (status === "processing" || status === "queued") {
+    return <span className="text-warn capitalize">{status}</span>;
+  }
+  return <span className="capitalize">{status}</span>;
 }

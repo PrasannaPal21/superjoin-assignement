@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDocument } from "@/lib/db/documents";
 import {
   listEvidenceForFact,
   listFacts,
@@ -21,15 +22,18 @@ export async function GET(req: NextRequest) {
       (f) =>
         f.claim.toLowerCase().includes(q) ||
         (f.entity || "").toLowerCase().includes(q) ||
-        (f.raw_value || "").toLowerCase().includes(q),
+        (f.raw_value || "").toLowerCase().includes(q) ||
+        (f.period || "").toLowerCase().includes(q),
     );
   }
 
   const payload = facts.slice(0, 500).map((f) => {
     const evidence = listEvidenceForFact(f.id);
+    const doc = getDocument(f.document_id);
     return {
       id: f.id,
       documentId: f.document_id,
+      documentName: doc?.original_filename ?? null,
       claim: f.claim,
       rawValue: f.raw_value,
       numericValue: f.numeric_value,
