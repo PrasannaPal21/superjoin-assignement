@@ -5,41 +5,44 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f3f1ec;
-  --foreground: #1a1f24;
-  --card: #fffcf7;
-  --card-foreground: #1a1f24;
-  --popover: #fffcf7;
-  --popover-foreground: #1a1f24;
-  --primary: #243b55;
-  --primary-foreground: #f7f4ee;
-  --secondary: #e8e4db;
-  --secondary-foreground: #24303a;
-  --muted: #ebe6dc;
-  --muted-foreground: #5c6670;
-  --accent: #dde7f0;
-  --accent-foreground: #243b55;
-  --destructive: #b42318;
-  --border: #d6d0c4;
-  --input: #d6d0c4;
-  --ring: #243b55;
-  --radius: 0.4rem;
-  --ok: #2f6b3a;
-  --warn: #9a5b12;
-  --danger: #b42318;
-  --chart-1: #2f6b3a;
-  --chart-2: #b42318;
-  --chart-3: #243b55;
-  --chart-4: #9a5b12;
-  --chart-5: #5c6670;
-  --sidebar: #fffcf7;
-  --sidebar-foreground: #1a1f24;
-  --sidebar-primary: #243b55;
-  --sidebar-primary-foreground: #f7f4ee;
-  --sidebar-accent: #ebe6dc;
-  --sidebar-accent-foreground: #1a1f24;
-  --sidebar-border: #d6d0c4;
-  --sidebar-ring: #243b55;
+  --background: #f7f7f5;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --secondary: #f1f1ef;
+  --secondary-foreground: #27272a;
+  --muted: #f1f1ef;
+  --muted-foreground: #6b7280;
+  --accent: #eef2ff;
+  --accent-foreground: #3730a3;
+  --destructive: #dc2626;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #a5b4fc;
+  --radius: 0.5rem;
+  --ok: #15803d;
+  --ok-soft: #ecfdf5;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --chart-1: #4f46e5;
+  --chart-2: #059669;
+  --chart-3: #dc2626;
+  --chart-4: #d97706;
+  --chart-5: #6b7280;
+  --sidebar: #fbfbfa;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #18181b;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #eef2ff;
+  --sidebar-accent-foreground: #3730a3;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #a5b4fc;
 }
 
 @theme inline {
@@ -62,8 +65,11 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -91,5 +97,87 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--accent) 70%, transparent);
+  }
+
+  /* Quiet scrollbars (Linear-style chrome) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 14%, transparent);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 24%, transparent);
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .card-lift {
+    transition:
+      box-shadow 150ms ease,
+      border-color 150ms ease;
+  }
+  .card-lift:hover {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 4px 12px rgb(0 0 0 / 0.04);
+    border-color: color-mix(in oklch, var(--foreground) 18%, var(--border));
+  }
+  .animate-rise {
+    animation: rise 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .animate-fade-in {
+    animation: fade-in 0.2s ease both;
+  }
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--muted) 60%, transparent) 25%,
+      color-mix(in oklch, var(--foreground) 8%, var(--muted)) 50%,
+      color-mix(in oklch, var(--muted) 60%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }

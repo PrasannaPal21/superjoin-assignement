@@ -2,13 +2,25 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { StatusIcon, StageLine, StatusPill } from "@/components/status-pill";
+import { formatBytes, shortDocName } from "@/lib/format";
+
+type JobInfo = {
+  id: string;
+  status: string;
+  stage: string | null;
+  current: number;
+  total: number;
+};
 
 type Doc = {
   id: string;
   filename: string;
   status: string;
   pageCount: number | null;
+  byteSize: number;
   errorMessage: string | null;
+  job: JobInfo | null;
 };
 
 export function DocumentSidebar({
@@ -23,76 +35,137 @@ export function DocumentSidebar({
   const [docs, setDocs] = useState<Doc[]>([]);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/documents");
-    const data = await res.json();
-    setDocs(data.documents || []);
+    try {
+      const res = await fetch("/api/documents");
+      const data = await res.json();
+      setDocs(data.documents || []);
+    } catch {
+      // transient network error — next poll will recover
+    }
   }, []);
 
   useEffect(() => {
     void load();
-    const id = setInterval(() => void load(), 2500);
+    const id = setInterval(() => void load(), 2000);
     return () => clearInterval(id);
   }, [load, refreshKey]);
 
+  const busyCount = docs.filter((d) => d.status === "processing" || d.status === "queued").length;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Documents
+      <div className="flex items-center justify-between px-4 pb-2 pt-4">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Documents
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          {busyCount > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="size-1.5 animate-pulse rounded-full bg-warn" />
+              {busyCount} in pipeline
+            </span>
+          ) : (
+            docs.length > 0 && `${docs.length}`
+          )}
+        </span>
       </div>
-      <ul className="flex-1 space-y-0.5 overflow-auto px-2 pb-3">
+
+      <ul className="flex-1 space-y-1 overflow-auto px-3 pb-3">
         {docs.length === 0 && (
-          <li className="px-2 py-8 text-center text-xs text-muted-foreground">
-            Add a PDF to begin extraction.
+          <li className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+            No documents yet.
+            <br />
+            Add your first PDF above.
           </li>
         )}
         {docs.map((d) => {
           const active = selectedId === d.id;
-          const short = shortenName(d.filename);
+          const processing = d.status === "processing";
           return (
             <li key={d.id}>
               <button
                 type="button"
                 onClick={() => onSelect(active ? null : d.id, active ? null : d.filename)}
                 className={cn(
-                  "w-full rounded-md px-2 py-2 text-left hover:bg-muted",
-                  active && "bg-accent text-accent-foreground",
+                  "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
+                  active
+                    ? "border-accent bg-accent"
+                    : "border-transparent hover:border-border hover:bg-muted/60",
                 )}
                 title={d.filename}
               >
-                <div className="truncate text-[13px] font-medium leading-snug">{short}</div>
-                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <StatusLabel status={d.status} />
-                  {d.pageCount != null && <span>· {d.pageCount} pages</span>}
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">
+                    <StatusIcon status={d.status} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block truncate text-[13px] font-medium leading-snug",
+                        active && "text-accent-foreground",
+                      )}
+                    >
+                      {shortDocName(d.filename)}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                      {d.status !== "processing" && <StatusPill status={d.status} />}
+                      {d.pageCount != null && <span>{d.pageCount} pages</span>}
+                      {d.byteSize > 0 && <span>{formatBytes(d.byteSize)}</span>}
+                    </span>
+                    {processing && d.job && (
+                      <span className="mt-1.5 block">
+                        <ProgressLine stage={d.job.stage} current={d.job.current} total={d.job.total} />
+                      </span>
+                    )}
+                    {d.errorMessage && (
+                      <span className="mt-1 block line-clamp-2 text-[11px] text-danger">
+                        {d.errorMessage}
+                      </span>
+                    )}
+                  </span>
                 </div>
-                {d.errorMessage && (
-                  <p className="mt-1 line-clamp-2 text-[11px] text-destructive">
-                    {d.errorMessage}
-                  </p>
-                )}
               </button>
             </li>
           );
         })}
       </ul>
-      <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
-        Click a document to filter facts from it.
+
+      <p className="border-t border-border px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+        Select a document to focus the facts view on it.
       </p>
     </div>
   );
 }
 
-function shortenName(name: string): string {
-  return name
-    .replace(/\.pdf$/i, "")
-    .replace(/^\d+-/, "")
-    .replace(/-/g, " ");
-}
-
-function StatusLabel({ status }: { status: string }) {
-  if (status === "ready") return <span className="text-ok">Ready</span>;
-  if (status === "failed") return <span className="text-danger">Failed</span>;
-  if (status === "processing" || status === "queued") {
-    return <span className="text-warn capitalize">{status}</span>;
-  }
-  return <span className="capitalize">{status}</span>;
+function ProgressLine({
+  stage,
+  current,
+  total,
+}: {
+  stage: string | null;
+  current: number;
+  total: number;
+}) {
+  const s = (stage || "").toLowerCase();
+  const frac =
+    s === "parsing" || s === "matching" || s.startsWith("done")
+      ? s.startsWith("done")
+        ? 1
+        : 0.15
+      : total > 0
+        ? Math.min(1, current / total)
+        : 0;
+  return (
+    <span className="block">
+      <span className="mb-1 block">
+        <StageLine stage={stage} current={current} total={total} />
+      </span>
+      <span className="block h-1 overflow-hidden rounded-full bg-muted">
+        <span
+          className="block h-full rounded-full bg-warn/80 transition-all duration-500"
+          style={{ width: `${Math.max(6, Math.round(frac * 100))}%` }}
+        />
+      </span>
+    </span>
+  );
 }
