@@ -67,7 +67,9 @@ Never commit real keys.
 
 ## Video Demo
 
-> **Paste your ≤3 minute demo link here before submitting** (Loom / YouTube unlisted / Drive).
+> [https://drive.google.com/file/d/1iNaXdtPxeBJeXbB1O5kydT2Owdr5yEvd/view?usp=sharing](https://drive.google.com/file/d/1iNaXdtPxeBJeXbB1O5kydT2Owdr5yEvd/view?usp=sharing)
+
+
 
 ## Approach
 
@@ -136,5 +138,5 @@ More detail: [ARCHITECTURE](docs/ARCHITECTURE.md) · [API](docs/API.md) · [SECU
 - [x] Runs from these instructions; accepts new PDFs via UI/API
 - [x] Facts + evidence + cross-document relations
 - [x] Four required cases demonstrable (Compare + Issues)
-- [ ] Demo video ≤ 3 min linked above
+- [x] Demo video ≤ 3 min linked above
 - [x] GitHub repo submitted via [form](https://forms.gle/3fLdBQ2D6Zm2Gqtv7)
