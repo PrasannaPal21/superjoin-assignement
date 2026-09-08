@@ -40,7 +40,8 @@ export function getMaxConcurrentJobs(): number {
 }
 
 export function getMaxConcurrentExtractions(): number {
-  return Math.max(1, Number(process.env.MAX_CONCURRENT_EXTRACTIONS || "4"));
+  // Default 1 to stay under free-tier Groq TPM when packing large chunks.
+  return Math.max(1, Number(process.env.MAX_CONCURRENT_EXTRACTIONS || "1"));
 }
 
 export function getGroqModel(): string {

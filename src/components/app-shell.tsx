@@ -50,6 +50,12 @@ export function AppShell() {
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   useEffect(() => {
+    const onRefresh = () => bump();
+    window.addEventListener("fkl-refresh", onRefresh);
+    return () => window.removeEventListener("fkl-refresh", onRefresh);
+  }, [bump]);
+
+  useEffect(() => {
     void fetch("/api/health")
       .then((r) => r.json())
       .then((d) => setHealthOk(Boolean(d.ok)))

@@ -1,13 +1,33 @@
 import { randomUUID } from "crypto";
-import { insertRelation } from "@/lib/db/facts";
+import { insertRelation, clearRelations, listFacts, updateFactMatchKey } from "@/lib/db/facts";
+import { listDocuments } from "@/lib/db/documents";
 import {
   classifyRelationBatch,
   classifyRelationHeuristic,
   getConfiguredMatchBatchSize,
 } from "@/lib/pipeline/classify-relation";
 import { findCandidatePairs } from "@/lib/pipeline/match-candidates";
+import { buildMatchKey } from "@/lib/pipeline/extract-stage";
 import { mapPool } from "@/lib/pipeline/pool";
 import { setMatchHandler } from "@/lib/pipeline/worker";
+import { insertFailure } from "@/lib/db/facts";
+
+function refreshMatchKeys(): number {
+  let n = 0;
+  for (const fact of listFacts()) {
+    const next = buildMatchKey({
+      entity: fact.entity,
+      factType: fact.fact_type,
+      unit: fact.unit,
+      claim: fact.claim,
+    });
+    if (next !== fact.match_key) {
+      updateFactMatchKey(fact.id, next);
+      n += 1;
+    }
+  }
+  return n;
+}
 
 export async function matchDocumentFacts(documentId: string): Promise<number> {
   const pairs = findCandidatePairs(documentId);
@@ -39,7 +59,7 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
     batches.push(needsLlm.slice(i, i + batchSize));
   }
 
-  const batchWrites = await mapPool(batches, 2, async (batch) => {
+  const batchWrites = await mapPool(batches, 1, async (batch) => {
     let local = 0;
     try {
       const results = await classifyRelationBatch(batch);
@@ -57,13 +77,44 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
         });
         local += 1;
       });
-    } catch {
-      // Skip a bad batch rather than failing the whole document
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "match batch failed";
+      insertFailure({
+        id: randomUUID(),
+        document_id: documentId,
+        stage: "match",
+        summary: `Relation batch of ${batch.length} pairs failed`,
+        detail: message,
+        suggestion:
+          "Wait for Groq rate limits to cool, then POST /api/rematch to rebuild comparisons.",
+      });
     }
     return local;
   });
 
   return written + batchWrites.reduce((a, b) => a + b, 0);
+}
+
+/** Recompute match keys and rebuild all cross-document relations from current facts. */
+export async function rematchAllDocuments(): Promise<{
+  keysUpdated: number;
+  relationsWritten: number;
+  documentsMatched: number;
+}> {
+  const keysUpdated = refreshMatchKeys();
+  clearRelations();
+
+  // Oldest first so later docs see earlier facts (same order as incremental ingest).
+  const docs = listDocuments()
+    .filter((d) => d.status === "ready")
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  let relationsWritten = 0;
+  for (const doc of docs) {
+    relationsWritten += await matchDocumentFacts(doc.id);
+  }
+
+  return { keysUpdated, relationsWritten, documentsMatched: docs.length };
 }
 
 setMatchHandler(async (documentId) => {

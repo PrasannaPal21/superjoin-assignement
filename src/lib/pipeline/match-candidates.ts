@@ -28,14 +28,15 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 /**
- * Cheap candidate generation. Prefer match_key hits, then high similarity.
- * Hard-capped to MAX_MATCH_PAIRS to bound LLM spend.
+ * Cheap candidate generation. Prefer match_key hits, then same fact_type,
+ * then lexical similarity. Hard-capped to MAX_MATCH_PAIRS.
  */
 export function findCandidatePairs(
   documentId: string,
   limit = getMaxMatchPairs(),
 ): FactPair[] {
-  const newFacts = listFacts(documentId).filter((f) => f.confidence >= 0.45);
+  const newFacts = listFacts(documentId).filter((f) => f.confidence >= 0.4);
+  const others = listFactsOutsideDocument(documentId).filter((f) => f.confidence >= 0.4);
   const pairs: FactPair[] = [];
   const seen = new Set<string>();
 
@@ -54,20 +55,39 @@ export function findCandidatePairs(
     }
   }
 
-  const others = listFactsOutsideDocument(documentId).filter((f) => f.confidence >= 0.45);
   for (const fact of newFacts) {
-    const leftTokens = tokenize(fact.claim);
+    const leftTokens = tokenize(
+      [fact.claim, fact.raw_value, fact.entity, fact.fact_type].filter(Boolean).join(" "),
+    );
+    const leftType = (fact.fact_type || "").toLowerCase();
+
     for (const other of others) {
-      const typeBoost =
-        fact.fact_type && fact.fact_type === other.fact_type ? 0.2 : 0;
+      const rightType = (other.fact_type || "").toLowerCase();
+      if (leftType && rightType && leftType === rightType && leftType !== "other") {
+        push(fact, other, "fact_type", 0.6);
+      }
+
+      const typeBoost = leftType && leftType === rightType ? 0.25 : 0;
       const entityBoost =
         fact.entity &&
         other.entity &&
-        fact.entity.toLowerCase() === other.entity.toLowerCase()
-          ? 0.2
+        fact.entity.toLowerCase().includes(
+          other.entity.toLowerCase().split(/\s+/)[0] || "",
+        )
+          ? 0.15
           : 0;
-      const score = jaccard(leftTokens, tokenize(other.claim)) + typeBoost + entityBoost;
-      if (score >= 0.45) {
+      const score =
+        jaccard(
+          leftTokens,
+          tokenize(
+            [other.claim, other.raw_value, other.entity, other.fact_type]
+              .filter(Boolean)
+              .join(" "),
+          ),
+        ) +
+        typeBoost +
+        entityBoost;
+      if (score >= 0.28) {
         push(fact, other, `similarity:${score.toFixed(2)}`, score);
       }
     }

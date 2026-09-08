@@ -184,3 +184,29 @@ export function listFactsOutsideDocument(documentId: string): FactRow[] {
     )
     .all(documentId) as FactRow[];
 }
+
+export function clearRelations(): void {
+  ensureDb();
+  getDb().prepare("DELETE FROM relations").run();
+}
+
+/** Wipe extracted knowledge for a document so it can be reprocessed. */
+export function clearDocumentKnowledge(documentId: string): void {
+  ensureDb();
+  const db = getDb();
+  db.prepare(
+    `DELETE FROM relations WHERE fact_a_id IN (SELECT id FROM facts WHERE document_id = ?)
+      OR fact_b_id IN (SELECT id FROM facts WHERE document_id = ?)`,
+  ).run(documentId, documentId);
+  db.prepare(
+    `DELETE FROM evidence WHERE fact_id IN (SELECT id FROM facts WHERE document_id = ?)`,
+  ).run(documentId);
+  db.prepare(`DELETE FROM facts WHERE document_id = ?`).run(documentId);
+  db.prepare(`DELETE FROM chunks WHERE document_id = ?`).run(documentId);
+  db.prepare(`DELETE FROM failures WHERE document_id = ?`).run(documentId);
+}
+
+export function updateFactMatchKey(id: string, matchKey: string): void {
+  ensureDb();
+  getDb().prepare(`UPDATE facts SET match_key = ? WHERE id = ?`).run(matchKey, id);
+}

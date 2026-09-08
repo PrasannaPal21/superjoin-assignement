@@ -65,6 +65,8 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [counts, setCounts] = useState({ corroborates: 0, contradicts: 0, reconciled: 0 });
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<"rematch" | "reprocess" | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -80,6 +82,25 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [filter, refreshKey]);
 
   const total = counts.corroborates + counts.contradicts + counts.reconciled;
+
+  async function runAction(kind: "rematch" | "reprocess") {
+    setBusy(kind);
+    setHint(null);
+    try {
+      const res = await fetch(kind === "rematch" ? "/api/rematch" : "/api/reprocess", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Request failed");
+      setHint(data.message || "Done.");
+      // Parent polls via refreshKey when jobs are busy; nudge once now.
+      window.dispatchEvent(new Event("fkl-refresh"));
+    } catch (err) {
+      setHint(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -113,7 +134,31 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             <span className={cn("tabular", filter === id ? "opacity-80" : "opacity-60")}>{n}</span>
           </button>
         ))}
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void runAction("rematch")}
+            className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            {busy === "rematch" ? "Rebuilding…" : "Rebuild comparisons"}
+          </button>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void runAction("reprocess")}
+            className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            {busy === "reprocess" ? "Queuing…" : "Re-extract all PDFs"}
+          </button>
+        </div>
       </div>
+
+      {hint && (
+        <p className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
 
       {loading && relations.length === 0 && (
         <div className="space-y-3">
@@ -129,10 +174,13 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
           <p className="text-sm font-medium text-foreground">
             {filter
               ? "No comparisons of this type yet."
-              : "Upload two or more documents to unlock cross-document comparisons."}
+              : "No cross-document comparisons yet."}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            The pipeline matches similar facts and explains how they relate — agreement, conflict, or context differences.
+          <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
+            Documents can show Ready even when Groq rate-limited most chunks — then facts don’t
+            overlap across PDFs. Use <span className="font-medium text-foreground">Re-extract all PDFs</span>{" "}
+            (wait a minute between big runs), or{" "}
+            <span className="font-medium text-foreground">Rebuild comparisons</span> if Facts already look rich.
           </p>
         </div>
       )}

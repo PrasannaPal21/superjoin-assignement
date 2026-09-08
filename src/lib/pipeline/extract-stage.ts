@@ -4,17 +4,32 @@ import { ensureDb } from "@/lib/db";
 import { insertEvidence, insertFact } from "@/lib/db/facts";
 import { extractFactsFromChunk } from "@/lib/llm/extract";
 import type { TextChunk } from "@/lib/pdf/chunk";
-import type { ExtractedFact } from "@/lib/llm/schemas";
 
-function buildMatchKey(fact: ExtractedFact): string {
+function normalizeEntity(entity?: string | null): string {
+  return (entity || "")
+    .toLowerCase()
+    .replace(/\b(limited|ltd\.?|inc\.?|pvt\.?|private|company)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Stable family key for cross-document candidates.
+ * Period/scope are intentionally omitted so FY23 vs FY24 (etc.) can still pair;
+ * classification decides corroborates / contradicts / reconciled.
+ */
+export function buildMatchKey(fact: {
+  entity?: string | null;
+  factType?: string | null;
+  unit?: string | null;
+  claim?: string | null;
+}): string {
   const parts = [
-    (fact.entity || "").toLowerCase().trim(),
+    normalizeEntity(fact.entity),
     (fact.factType || "").toLowerCase().trim(),
     (fact.unit || "").toLowerCase().trim(),
-    (fact.period || "").toLowerCase().trim(),
-    (fact.scope || "").toLowerCase().trim(),
   ];
-  return parts.filter(Boolean).join("|") || fact.claim.toLowerCase().slice(0, 80);
+  return parts.filter(Boolean).join("|") || (fact.claim || "").toLowerCase().slice(0, 80);
 }
 
 export function persistChunk(
