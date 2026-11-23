@@ -101,6 +101,58 @@ export function getGroqMatchModel(): string {
   return process.env.GROQ_MATCH_MODEL?.trim() || getGroqModel();
 }
 
+/**
+ * Embedding backend:
+ * - `local` (default) — free open-source ONNX model via @huggingface/transformers
+ * - `http` — optional OpenAI-compatible HTTP API (not required)
+ */
+export function getEmbeddingProvider(): "local" | "http" {
+  const raw = process.env.EMBEDDING_PROVIDER?.trim().toLowerCase();
+  if (raw === "http" || raw === "api" || raw === "openai") return "http";
+  return "local";
+}
+
+/** Hugging Face / Xenova model id for local embeddings. */
+export function getEmbeddingModel(): string {
+  return (
+    process.env.EMBEDDING_MODEL?.trim() || "Xenova/all-MiniLM-L6-v2"
+  );
+}
+
+/** MiniLM-L6-v2 = 384 dims; override if you swap models. */
+export function getEmbeddingDimensions(): number {
+  const n = Number(process.env.EMBEDDING_DIMENSIONS || "384");
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 384;
+}
+
+export function getEmbeddingBatchSize(): number {
+  return Math.max(1, Number(process.env.EMBEDDING_BATCH_SIZE || "16"));
+}
+
+/** Cache dir for downloaded ONNX weights (local provider). */
+export function getEmbeddingCacheDir(): string {
+  return process.env.EMBEDDING_CACHE_DIR?.trim() || ".cache/embeddings";
+}
+
+/** Optional HTTP embeddings (paid/free hosted). Unused when provider=local. */
+export function getEmbeddingApiKey(): string | undefined {
+  const key = process.env.EMBEDDING_API_KEY?.trim();
+  return key || undefined;
+}
+
+export function getEmbeddingBaseUrl(): string {
+  return (
+    process.env.EMBEDDING_BASE_URL?.trim().replace(/\/$/, "") ||
+    "https://api.openai.com/v1"
+  );
+}
+
+/** Local provider needs no key; HTTP needs EMBEDDING_API_KEY. */
+export function isEmbeddingsConfigured(): boolean {
+  if (getEmbeddingProvider() === "local") return true;
+  return Boolean(getEmbeddingApiKey());
+}
+
 /** Tried in order when the primary model returns model_not_found. */
 export function getGroqFallbackModels(): string[] {
   const raw = process.env.GROQ_FALLBACK_MODELS || "openai/gpt-oss-20b";

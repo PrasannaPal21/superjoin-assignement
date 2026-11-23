@@ -229,6 +229,7 @@ flowchart LR
 
 | Decision | Choice |
 |----------|--------|
+| Provider | **Local free** `Xenova/all-MiniLM-L6-v2` (384-d) via `@huggingface/transformers` |
 | Spaces | Same embedding model for index + query |
 | Similarity | Cosine on L2-normalized vectors |
 | Versioning | Store `embedding_model` + dim; re-embed on bump |

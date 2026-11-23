@@ -43,14 +43,14 @@ Deep dive with Mermaid diagrams: [docs/RAG_ARCHITECTURE.md](docs/RAG_ARCHITECTUR
 
 - Node.js **20+** (tested on 22)
 - A [Groq](https://console.groq.com/) API key (extract, match, rerank, Ask)
-- An embedding API key / base URL (fact-card + evidence vectors)
+- Network once to download the free local embedding model (~25MB ONNX; then offline)
 
 ### Install
 
 ```bash
 cp .env.example .env
 # set GROQ_API_KEY=...
-# set EMBEDDING_API_KEY=... (and EMBEDDING_BASE_URL / EMBEDDING_MODEL if needed)
+# embeddings default to free local MiniLM (no paid key)
 
 npm install
 npm run dev
@@ -85,9 +85,10 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `GROQ_MATCH_MODEL` | Ambiguous relation pairs | `openai/gpt-oss-120b` |
 | `GROQ_RERANK_MODEL` | Candidate / passage reranker | `openai/gpt-oss-20b` |
 | `GROQ_FALLBACK_MODELS` | On `model_not_found` | `openai/gpt-oss-20b` |
-| `EMBEDDING_API_KEY` | Dense embeddings | — |
-| `EMBEDDING_BASE_URL` | OpenAI-compatible embeddings endpoint | provider default |
-| `EMBEDDING_MODEL` | Embedding model id | set in `.env.example` |
+| `EMBEDDING_PROVIDER` | `local` (free ONNX) or `http` | `local` |
+| `EMBEDDING_MODEL` | Local HF model id | `Xenova/all-MiniLM-L6-v2` |
+| `EMBEDDING_DIMENSIONS` | Vector size | `384` |
+| `EMBEDDING_CACHE_DIR` | ONNX model cache | `.cache/embeddings` |
 | `MAX_UPLOAD_MB` | Upload size cap | `40` |
 | `MAX_PAGES` | Pages parsed per PDF | `500` |
 | `OCR_ENABLED` | Local Tesseract on sparse pages | `true` |

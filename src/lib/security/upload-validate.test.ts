@@ -35,7 +35,9 @@ import {
   buildFactCardCompact,
   tokenizeIndexText,
 } from "@/lib/embeddings/index-text";
+import { cosineSimilarity, l2Normalize } from "@/lib/embeddings/client";
 import {
+  getEmbeddingModel,
   getOcrMinTextChars,
   isOcrEnabled,
 } from "@/lib/config";
@@ -82,6 +84,18 @@ describe("fact schema", () => {
     });
     expect(parsed.facts).toHaveLength(1);
     expect(parsed.facts[0].factType).toBe("revenue");
+  });
+});
+
+describe("embedding client helpers (step 2)", () => {
+  it("defaults to free local MiniLM model", () => {
+    expect(getEmbeddingModel()).toContain("MiniLM");
+  });
+
+  it("L2-normalizes and supports cosine via dot product", () => {
+    const n = l2Normalize([3, 4]);
+    expect(Math.hypot(...n)).toBeCloseTo(1, 5);
+    expect(cosineSimilarity(n, n)).toBeCloseTo(1, 5);
   });
 });
 

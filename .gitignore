@@ -48,6 +48,9 @@ next-env.d.ts
 /data/
 !/data/.gitkeep
 
+# local embedding model cache (Transformers.js / ONNX)
+/.cache/
+
 # local fixtures overrides
 *.db
 *.db-journal

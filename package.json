@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.2",
     "@napi-rs/canvas": "^1.2.0",
     "@number-flow/react": "^0.6.2",
     "@visx/curve": "^4.0.1-alpha.0",

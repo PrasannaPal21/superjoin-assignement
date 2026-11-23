@@ -67,7 +67,7 @@ New documents match **against existing facts only**. Older documents are not re-
 ## LLM & embedding boundary
 
 - **Groq** — extract, classify, rerank, Ask (role-specific models).
-- **Embedding API** — OpenAI-compatible; same model for index and query.
+- **Embeddings** — free local open-source MiniLM (`Xenova/all-MiniLM-L6-v2` via Transformers.js); optional HTTP provider.
 - PDF text treated as **untrusted data**.
 - Structured outputs validated with Zod.
 

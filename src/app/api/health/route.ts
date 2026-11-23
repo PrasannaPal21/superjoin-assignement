@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
-import { getGroqFallbackModels, getGroqModel } from "@/lib/config";
+import {
+  getEmbeddingCacheDir,
+  getEmbeddingDimensions,
+  getEmbeddingModel,
+  getEmbeddingProvider,
+  getGroqFallbackModels,
+  getGroqModel,
+  isEmbeddingsConfigured,
+} from "@/lib/config";
 import { ensureDb } from "@/lib/db";
 import { getDb, getDbPath } from "@/lib/db/client";
 import { getGroqApiKey } from "@/lib/llm/groq";
@@ -27,6 +35,13 @@ export async function GET() {
         configured: hasKey,
         model: getGroqModel(),
         fallbacks: getGroqFallbackModels(),
+      },
+      embeddings: {
+        configured: isEmbeddingsConfigured(),
+        provider: getEmbeddingProvider(),
+        model: getEmbeddingModel(),
+        dimensions: getEmbeddingDimensions(),
+        cacheDir: getEmbeddingCacheDir(),
       },
     });
   } catch (err) {
