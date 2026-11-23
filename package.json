@@ -9,7 +9,9 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke:embed": "npx tsx scripts/smoke-embed.ts",
+    "smoke:hybrid": "npx tsx scripts/smoke-hybrid.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2",

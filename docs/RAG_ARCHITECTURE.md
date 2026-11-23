@@ -465,7 +465,34 @@ flowchart LR
 
 ---
 
-## 11. Interview one-liner
+## 11. Embeddings / hybrid pipeline checklist
+
+| # | Stage | Status | Entry |
+|---|--------|--------|--------|
+| 1 | Fact card / evidence index text | done | [`index-text.ts`](../src/lib/embeddings/index-text.ts) |
+| 2 | Free local MiniLM embed client | done | [`client.ts`](../src/lib/embeddings/client.ts) |
+| 3 | Vector storage schema + CRUD | done | [`migrate-embeddings.ts`](../src/lib/db/migrate-embeddings.ts) |
+| 4 | Index on ingest | done | [`index-document.ts`](../src/lib/embeddings/index-document.ts) |
+| 5 | Sparse / BM25 | done | [`sparse.ts`](../src/lib/embeddings/sparse.ts) |
+| 6 | Dense cosine search | done | [`dense.ts`](../src/lib/embeddings/dense.ts) |
+| 7 | Hybrid + RRF → Compare | done | [`hybrid.ts`](../src/lib/embeddings/hybrid.ts) |
+| 8 | Metadata soft filters + caps | done | [`metadata-filters.ts`](../src/lib/embeddings/metadata-filters.ts) |
+| 9 | Evidence Ask prep | done | [`hybrid-ask.ts`](../src/lib/embeddings/hybrid-ask.ts) |
+| 10 | Fixtures + smoke | done | [`fixtures.ts`](../src/lib/embeddings/fixtures.ts), `npm run smoke:hybrid` |
+
+**Not in this pipeline (next phases):** LLM rerank, Ask generation, HITL conflict gate, GraphRAG.
+
+Smoke:
+
+```bash
+npm test
+npm run smoke:hybrid   # offline hybrid recall fixture
+npm run smoke:embed    # optional live MiniLM download
+```
+
+---
+
+## 12. Interview one-liner
 
 > “This is a **classical hybrid RAG** over a fact ledger: structure-aware parent–child indexing, dual embeddings (fact cards + evidence), hybrid sparse+dense retrieval with RRF, LLM reranking, then either three-way relation classification or citation-grounded Ask — not GraphRAG and not agentic RAG.”
 

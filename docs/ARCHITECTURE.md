@@ -50,7 +50,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)).
 5. **Parent–child hierarchy** — [`hierarchy.ts`](../src/lib/pdf/hierarchy.ts) / [`parents.ts`](../src/lib/pdf/parents.ts) / [`children.ts`](../src/lib/pdf/children.ts): blocks → `kind=parent` → `kind=child` with `parent_id`. Flat page-packing is removed.
 6. **Extract** — Groq JSON on **child** chunks with parent/section context (`GROQ_EXTRACT_MODEL`); top children by signal capped by `MAX_EXTRACT_CHUNKS` ([`select-extract.ts`](../src/lib/pdf/select-extract.ts)); Zod + JSON repair; ~12 facts / child. Evidence quotes come from the child excerpt.
-7. **Index** — `match_key`; after extract, [`indexDocumentEmbeddings`](../src/lib/embeddings/index-document.ts) embeds fact/evidence cards; [`indexDocumentSparse`](../src/lib/embeddings/sparse.ts) writes BM25 postings (`sparseSearch` for lexical recall).
+7. **Index** — `match_key`; after extract, [`indexDocumentEmbeddings`](../src/lib/embeddings/index-document.ts) embeds fact/evidence cards; [`indexDocumentSparse`](../src/lib/embeddings/sparse.ts) writes BM25 postings for facts + evidence. Checklist: [RAG_ARCHITECTURE.md §11](RAG_ARCHITECTURE.md).
 
 ### Query-time (Compare)
 

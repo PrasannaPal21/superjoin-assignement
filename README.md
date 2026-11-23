@@ -60,8 +60,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 curl http://localhost:3000/api/health   # llm + embeddings configured
-npm test                                # unit tests
-npm run eval                            # golden RAG evals (when fixtures present)
+npm test                                # unit tests (incl. hybrid pipeline smoke)
+npm run smoke:hybrid                    # offline hybrid recall fixture (no model download)
+npm run smoke:embed                     # optional live MiniLM embed check
 ```
 
 ### Process the starter dataset
