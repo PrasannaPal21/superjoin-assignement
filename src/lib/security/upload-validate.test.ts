@@ -8,6 +8,12 @@ import { repairJsonText, parseJsonWithRepair } from "@/lib/llm/json-repair";
 import { ExtractionResultSchema } from "@/lib/llm/schemas";
 import { chunkPages } from "@/lib/pdf/chunk";
 import {
+  applyPageSignals,
+  explainPageSignal,
+  scorePageSignal,
+  selectHighSignalPages,
+} from "@/lib/pdf/signal";
+import {
   getOcrMinTextChars,
   isOcrEnabled,
 } from "@/lib/config";
@@ -64,22 +70,52 @@ describe("ocr config", () => {
   });
 });
 
+describe("signal scoring", () => {
+  it("scores TOC/filler low and KPI pages high", () => {
+    const toc = scorePageSignal("Table of contents ............ 1 ........ 2");
+    const kpi = scorePageSignal(
+      "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021. EBITDA margin and PAT grew YoY.",
+    );
+    expect(toc).toBeLessThan(0.8);
+    expect(kpi).toBeGreaterThanOrEqual(0.8);
+    expect(explainPageSignal("Glossary of terms …").lowSignal).toBe(true);
+  });
+
+  it("selects high-signal pages in reading order", () => {
+    const pages = applyPageSignals([
+      { pageNumber: 1, text: "Table of contents ............ 1" },
+      {
+        pageNumber: 2,
+        text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
+      },
+      {
+        pageNumber: 3,
+        text: "EBITDA stood at ₹ 312 crore for FY24. Shipments and pin code coverage expanded.",
+      },
+    ]);
+    const selected = selectHighSignalPages(pages);
+    expect(selected.every((p) => (p.signalScore ?? 0) >= 0.8)).toBe(true);
+    expect(selected.map((p) => p.pageNumber)).toEqual(
+      [...selected.map((p) => p.pageNumber)].sort((a, b) => a - b),
+    );
+    expect(selected.some((p) => p.pageNumber === 1)).toBe(false);
+  });
+});
+
 describe("chunking", () => {
   it("packs signal-rich pages and skips fluff", () => {
-    const chunks = chunkPages(
-      [
-        { pageNumber: 1, text: "Table of contents ............ 1" },
-        {
-          pageNumber: 2,
-          text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
-        },
-        {
-          pageNumber: 3,
-          text: "EBITDA stood at ₹ 312 crore for FY24. Shipments and pin code coverage expanded.",
-        },
-      ],
-      2,
-    );
+    const pages = applyPageSignals([
+      { pageNumber: 1, text: "Table of contents ............ 1" },
+      {
+        pageNumber: 2,
+        text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
+      },
+      {
+        pageNumber: 3,
+        text: "EBITDA stood at ₹ 312 crore for FY24. Shipments and pin code coverage expanded.",
+      },
+    ]);
+    const chunks = chunkPages(pages, 2);
     expect(chunks.length).toBeGreaterThanOrEqual(1);
     expect(chunks[0].pageStart).toBeGreaterThanOrEqual(2);
     expect(chunks.some((c) => c.text.includes("Revenue"))).toBe(true);

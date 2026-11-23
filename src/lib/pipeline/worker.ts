@@ -11,6 +11,7 @@ import {
 import { insertFailure } from "@/lib/db/facts";
 import { chunkPages } from "@/lib/pdf/chunk";
 import { extractPdfPages } from "@/lib/pdf/parse";
+import { applyPageSignals } from "@/lib/pdf/signal";
 import {
   extractAndStoreChunkFacts,
   persistChunk,
@@ -71,6 +72,9 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     updateJobProgress(jobId, "parsing (+OCR if needed)", 0, 1);
     const parsed = await extractPdfPages(doc.stored_path);
     updateDocumentStatus(documentId, "processing", { page_count: parsed.pageCount });
+
+    updateJobProgress(jobId, "scoring page signals", 0, 1);
+    applyPageSignals(parsed.pages);
 
     // OCR success is normal — do not journal. Only fail when text is still unusable.
     if (parsed.emptyPageCount > parsed.pages.length * 0.8) {

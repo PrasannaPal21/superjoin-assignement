@@ -5,6 +5,8 @@ export type PdfPage = {
   text: string;
   /** How the page text was obtained. Defaults to text-layer when omitted. */
   source?: PdfTextSource;
+  /** Finance/KPI density prior — set after parse (+ OCR) via applyPageSignals. */
+  signalScore?: number;
 };
 
 export type PdfParseResult = {

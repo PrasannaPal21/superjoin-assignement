@@ -3,6 +3,7 @@ import {
   getChunkPages,
   getMaxExtractChunks,
 } from "@/lib/config";
+import { scorePageSignal, selectHighSignalPages } from "@/lib/pdf/signal";
 import type { PdfPage } from "./types";
 
 export type TextChunk = {
@@ -17,25 +18,8 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-const SIGNAL_RE =
-  /(\d[\d,]*(?:\.\d+)?)|₹|rs\.?|crore|million|billion|%|revenue|profit|ebitda|fiscal|fy\d|assets|equity|liabilit|director|board|tonnage|shipment|pin\s*code|capacity|utili[sz]ation/gi;
-
-const LOW_SIGNAL_RE =
-  /table of contents|contents\s+page|this page (is|has been) intentionally|glossary of terms|\.{4,}/i;
-
-/**
- * Score how likely a page holds extractable facts.
- * Skips TOC / filler so we spend LLM budget on dense pages.
- */
-export function scorePageSignal(text: string): number {
-  if (!text || text.length < 40) return 0;
-  if (LOW_SIGNAL_RE.test(text) && (text.match(SIGNAL_RE) || []).length < 3) {
-    return 0.1;
-  }
-  const hits = text.match(SIGNAL_RE) || [];
-  const density = hits.length / Math.max(1, text.length / 400);
-  const numberBonus = (text.match(/\d/g) || []).length > 8 ? 1.5 : 0;
-  return Math.min(20, density + numberBonus);
+function pageSignal(page: PdfPage): number {
+  return page.signalScore ?? scorePageSignal(page.text || "");
 }
 
 function buildChunk(slice: PdfPage[]): TextChunk {
@@ -44,7 +28,7 @@ function buildChunk(slice: PdfPage[]): TextChunk {
     text.length > getChunkCharBudget() + 2000
       ? text.slice(0, getChunkCharBudget() + 2000) + "\n…[truncated]"
       : text;
-  const signalScore = slice.reduce((s, p) => s + scorePageSignal(p.text), 0);
+  const signalScore = slice.reduce((s, p) => s + pageSignal(p), 0);
   return {
     pageStart: slice[0].pageNumber,
     pageEnd: slice[slice.length - 1].pageNumber,
@@ -56,6 +40,7 @@ function buildChunk(slice: PdfPage[]): TextChunk {
 
 /**
  * Pack high-signal pages into fewer, larger chunks.
+ * Signal scoring is the budget prior; structure-aware parent/child comes later.
  * Caps total LLM extract calls via MAX_EXTRACT_CHUNKS.
  */
 export function chunkPages(
@@ -66,14 +51,10 @@ export function chunkPages(
   const maxPages = Math.max(1, pagesPerChunk);
   const maxChunks = getMaxExtractChunks();
 
-  const usable = pages
-    .filter((p) => p.text && p.text.length > 40 && scorePageSignal(p.text) >= 0.8)
-    .sort((a, b) => scorePageSignal(b.text) - scorePageSignal(a.text));
-
-  // Keep reading order for packing after selecting top pages by signal
-  const selected = usable
-    .slice(0, Math.min(usable.length, maxChunks * maxPages))
-    .sort((a, b) => a.pageNumber - b.pageNumber);
+  // Prefer pages already scored after parse; selectHighSignalPages fills gaps.
+  const selected = selectHighSignalPages(pages, {
+    limit: maxChunks * maxPages,
+  });
 
   const packed: TextChunk[] = [];
   let buf: PdfPage[] = [];
@@ -106,3 +87,6 @@ export function chunkPages(
     .slice(0, maxChunks)
     .sort((a, b) => a.pageStart - b.pageStart);
 }
+
+/** Re-export for callers/tests that historically imported from chunk. */
+export { scorePageSignal } from "@/lib/pdf/signal";

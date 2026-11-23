@@ -96,7 +96,8 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `OCR_MAX_PAGES` | Max pages OCR’d per PDF | `80` |
 | `OCR_LANG` | Tesseract language | `eng` |
 | `OCR_CONCURRENCY` | Parallel OCR pages | `1` |
-| `CHUNK_PAGES` / `CHUNK_CHAR_BUDGET` | Parent pack soft limits | `8` / `12000` |
+| `SIGNAL_MIN_SCORE` | Min page signal to enter extract packing | `0.8` |
+| `CHUNK_PAGES` / `CHUNK_CHAR_BUDGET` | Pack soft limits | `8` / `12000` |
 | `MAX_EXTRACT_CHUNKS` | Hard cap extract calls / PDF | `16` |
 | `MAX_MATCH_PAIRS` | Cap after RRF / before rerank budget | `16` |
 | `RERANK_TOP_N` / `RERANK_TOP_M` | Rerank in → out | `30` / `12` |
