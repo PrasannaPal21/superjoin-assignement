@@ -53,6 +53,20 @@ export function getChunkPages(): number {
   return Math.max(1, Number(process.env.CHUNK_PAGES || "8"));
 }
 
+/** Child narrative pack targets (approx tokens; chars≈tokens*4). */
+export function getChildMinTokens(): number {
+  return Math.max(50, Number(process.env.CHILD_MIN_TOKENS || "200"));
+}
+
+export function getChildMaxTokens(): number {
+  return Math.max(getChildMinTokens(), Number(process.env.CHILD_MAX_TOKENS || "800"));
+}
+
+/** Rows per table child (header repeated each group). */
+export function getChildTableRows(): number {
+  return Math.max(1, Number(process.env.CHILD_TABLE_ROWS || "5"));
+}
+
 export function getChunkCharBudget(): number {
   return Math.max(4000, Number(process.env.CHUNK_CHAR_BUDGET || "12000"));
 }

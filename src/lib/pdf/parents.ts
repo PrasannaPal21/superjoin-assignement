@@ -15,7 +15,7 @@ function capParentText(text: string): string {
 
 /**
  * Step 4: turn table/narrative blocks into parent TextChunks (context units).
- * Does not create children yet — extract still uses flat packs until steps 5–6.
+ * Children are created in step 5 (`childChunksFromParent`); extract moves in step 6.
  */
 export function parentChunksFromBlocks(blocks: DocumentBlock[]): TextChunk[] {
   return blocks

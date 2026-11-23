@@ -18,6 +18,7 @@ import {
   isSectionHeading,
   linesFromPageText,
 } from "@/lib/pdf/structure";
+import { childChunksFromParent } from "@/lib/pdf/children";
 import { parentChunksFromBlocks } from "@/lib/pdf/parents";
 import {
   detectBlocksFromSections,
@@ -218,6 +219,60 @@ describe("parent chunks (step 4)", () => {
     expect(parents.every((p) => p.parentId == null)).toBe(true);
     expect(parents.some((p) => p.blockKind === "table")).toBe(true);
     expect(parents.some((p) => /financial highlights/i.test(p.sectionTitle || ""))).toBe(
+      true,
+    );
+  });
+});
+
+describe("child chunks (step 5)", () => {
+  it("links narrative children to parentId and respects size packing", () => {
+    const parent = {
+      pageStart: 1,
+      pageEnd: 1,
+      text: [
+        "First paragraph about capacity utilization and network expansion in FY24.",
+        "",
+        "Second paragraph covering revenue from operations and EBITDA trajectory.",
+        "",
+        "Third paragraph on shipments, pin code coverage, and operating leverage.",
+      ].join("\n"),
+      tokenEstimate: 200,
+      signalScore: 3,
+      kind: "parent" as const,
+      parentId: null,
+      sectionTitle: "Financial Highlights",
+      blockKind: "narrative" as const,
+    };
+    const children = childChunksFromParent(parent, "parent-1");
+    expect(children.length).toBeGreaterThanOrEqual(1);
+    expect(children.every((c) => c.kind === "child")).toBe(true);
+    expect(children.every((c) => c.parentId === "parent-1")).toBe(true);
+  });
+
+  it("keeps table header with each row group", () => {
+    const parent = {
+      pageStart: 2,
+      pageEnd: 2,
+      text: [
+        "Particulars  FY23  FY24",
+        "Revenue from operations  3,000.00  4,815.04",
+        "EBITDA  250.50  312.00",
+        "PAT  100.00  140.00",
+        "Cash from operations  180.00  210.00",
+        "Capex  90.00  110.00",
+        "Net debt  50.00  40.00",
+      ].join("\n"),
+      tokenEstimate: 120,
+      signalScore: 5,
+      kind: "parent" as const,
+      sectionTitle: "Financial Highlights",
+      blockKind: "table" as const,
+    };
+    const children = childChunksFromParent(parent, "parent-table");
+    expect(children.length).toBeGreaterThanOrEqual(1);
+    expect(children.every((c) => c.parentId === "parent-table")).toBe(true);
+    expect(children.every((c) => /Particulars/.test(c.text))).toBe(true);
+    expect(children.some((c) => /Revenue from operations/.test(c.text))).toBe(
       true,
     );
   });
