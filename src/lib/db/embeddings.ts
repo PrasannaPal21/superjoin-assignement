@@ -106,6 +106,53 @@ export function listFactEmbeddings(model?: string): FactEmbeddingRow[] {
   return rows.map(mapFact);
 }
 
+/** Active-fact embeddings for dense search (optional model + exclude doc). */
+export function listFactEmbeddingsForSearch(opts?: {
+  model?: string;
+  excludeDocumentId?: string;
+}): FactEmbeddingRow[] {
+  ensureDb();
+  const db = getDb();
+  const model = opts?.model;
+  const exclude = opts?.excludeDocumentId;
+
+  let rows: FactEmbeddingDbRow[];
+  if (model && exclude) {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM fact_embeddings e
+         JOIN facts f ON f.id = e.fact_id
+         WHERE f.status = 'active' AND e.model = ? AND f.document_id != ?`,
+      )
+      .all(model, exclude) as FactEmbeddingDbRow[];
+  } else if (model) {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM fact_embeddings e
+         JOIN facts f ON f.id = e.fact_id
+         WHERE f.status = 'active' AND e.model = ?`,
+      )
+      .all(model) as FactEmbeddingDbRow[];
+  } else if (exclude) {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM fact_embeddings e
+         JOIN facts f ON f.id = e.fact_id
+         WHERE f.status = 'active' AND f.document_id != ?`,
+      )
+      .all(exclude) as FactEmbeddingDbRow[];
+  } else {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM fact_embeddings e
+         JOIN facts f ON f.id = e.fact_id
+         WHERE f.status = 'active'`,
+      )
+      .all() as FactEmbeddingDbRow[];
+  }
+  return rows.map(mapFact);
+}
+
 export function countFactEmbeddings(model?: string): number {
   ensureDb();
   const row = (
@@ -174,6 +221,57 @@ export function listEvidenceEmbeddings(model?: string): EvidenceEmbeddingRow[] {
           .all(model)
       : db.prepare(`SELECT * FROM evidence_embeddings`).all()
   ) as EvidenceEmbeddingDbRow[];
+  return rows.map(mapEvidence);
+}
+
+/** Evidence embeddings joined to active facts (Ask path). */
+export function listEvidenceEmbeddingsForSearch(opts?: {
+  model?: string;
+  excludeDocumentId?: string;
+}): EvidenceEmbeddingRow[] {
+  ensureDb();
+  const db = getDb();
+  const model = opts?.model;
+  const exclude = opts?.excludeDocumentId;
+
+  let rows: EvidenceEmbeddingDbRow[];
+  if (model && exclude) {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM evidence_embeddings e
+         JOIN evidence ev ON ev.id = e.evidence_id
+         JOIN facts f ON f.id = ev.fact_id
+         WHERE f.status = 'active' AND e.model = ? AND f.document_id != ?`,
+      )
+      .all(model, exclude) as EvidenceEmbeddingDbRow[];
+  } else if (model) {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM evidence_embeddings e
+         JOIN evidence ev ON ev.id = e.evidence_id
+         JOIN facts f ON f.id = ev.fact_id
+         WHERE f.status = 'active' AND e.model = ?`,
+      )
+      .all(model) as EvidenceEmbeddingDbRow[];
+  } else if (exclude) {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM evidence_embeddings e
+         JOIN evidence ev ON ev.id = e.evidence_id
+         JOIN facts f ON f.id = ev.fact_id
+         WHERE f.status = 'active' AND f.document_id != ?`,
+      )
+      .all(exclude) as EvidenceEmbeddingDbRow[];
+  } else {
+    rows = db
+      .prepare(
+        `SELECT e.* FROM evidence_embeddings e
+         JOIN evidence ev ON ev.id = e.evidence_id
+         JOIN facts f ON f.id = ev.fact_id
+         WHERE f.status = 'active'`,
+      )
+      .all() as EvidenceEmbeddingDbRow[];
+  }
   return rows.map(mapEvidence);
 }
 

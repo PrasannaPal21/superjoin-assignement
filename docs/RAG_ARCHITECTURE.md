@@ -234,6 +234,7 @@ flowchart LR
 | Spaces | Same embedding model for index + query |
 | Similarity | Cosine on L2-normalized vectors |
 | Storage | SQLite `fact_embeddings` / `evidence_embeddings` — Float32 little-endian BLOBs ([`vector-codec.ts`](../src/lib/embeddings/vector-codec.ts)); upsert/get/list/delete in [`db/embeddings.ts`](../src/lib/db/embeddings.ts) |
+| Dense recall | Brute-force cosine via [`denseSearch`](../src/lib/embeddings/dense.ts) / `denseSearchEvidence` (ANN/pgvector later) |
 | Versioning | Store `model` + `dimensions`; re-embed on bump |
 | Filters | SQL/metadata filters **plus** text baked into card |
 
@@ -426,6 +427,7 @@ flowchart LR
     codec[vector-codec.ts]
     indexDoc[index-document.ts]
     sparse[sparse.ts]
+    dense[dense.ts]
   end
   subgraph dbemb [src/lib/db]
     migrateEmb[migrate-embeddings.ts]
@@ -448,6 +450,7 @@ flowchart LR
   migrateSparse --> sparseCrud
   indexDoc --> match
   sparse --> match
+  dense --> match
   match --> candidates --> rerank --> classify
   classify --> llm
 ```

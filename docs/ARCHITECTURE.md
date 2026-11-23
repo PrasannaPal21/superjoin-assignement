@@ -53,7 +53,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 
 ### Query-time (Compare)
 
-8. **Hybrid recall** — exact `match_key` ∪ BM25 ∪ dense top-K; metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
+8. **Hybrid recall** — exact `match_key` ∪ BM25 ([`sparseSearch`](../src/lib/embeddings/sparse.ts)) ∪ dense cosine ([`denseSearch`](../src/lib/embeddings/dense.ts)); metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
 9. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
 10. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
 11. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
