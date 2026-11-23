@@ -273,7 +273,7 @@ flowchart TD
 
 **Compare wiring:** [`hybridRetrieveForFact`](../src/lib/embeddings/hybrid.ts) → [`findCandidatePairs`](../src/lib/pipeline/match-candidates.ts) → existing heuristic/LLM classify.
 
-**Metadata:** prefer same entity family; do **not** hard-drop different periods (needed for `reconciled`). Period stays out of `match_key` by design.
+**Metadata (soft only):** [`metadataSoftBoost`](../src/lib/embeddings/metadata-filters.ts) multiplies RRF scores for same entity family / unit / fact_type / period (`ENTITY_FAMILY_BOOST`, …). Different periods are **kept** so classify can emit `reconciled`. Period stays out of `match_key` by design.
 
 ---
 

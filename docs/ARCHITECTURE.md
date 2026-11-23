@@ -53,7 +53,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 
 ### Query-time (Compare)
 
-8. **Hybrid recall** — per new fact: `match_key` ∪ BM25 ∪ dense → [`reciprocalRankFusion`](../src/lib/embeddings/rrf.ts) in [`hybridRetrieveForFact`](../src/lib/embeddings/hybrid.ts); wired into [`findCandidatePairs`](../src/lib/pipeline/match-candidates.ts). Caps: `SPARSE_TOP_K` / `DENSE_TOP_K` / `RRF_TOP_N` / `MAX_MATCH_PAIRS`.
+8. **Hybrid recall** — per new fact: `match_key` ∪ BM25 ∪ dense → RRF → soft metadata boosts ([`metadata-filters.ts`](../src/lib/embeddings/metadata-filters.ts): entity/unit/type/period; **never** hard-drop different periods). Caps: `SPARSE_TOP_K` / `DENSE_TOP_K` / `RRF_TOP_N` / `MAX_MATCH_PAIRS`.
 9. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
 10. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
 11. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.

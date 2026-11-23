@@ -50,10 +50,12 @@ export function findCandidatePairs(
       const other = byId.get(hit.factId);
       if (!other) continue;
       const channels = hit.channels.join("+") || "hybrid";
+      const boosts =
+        hit.boosts.length > 0 ? `;boost=${hit.boosts.join("+")}` : "";
       push(
         fact,
         other,
-        `hybrid:${channels};rrf=${hit.score.toFixed(4)}`,
+        `hybrid:${channels};rrf=${hit.score.toFixed(4)}${boosts}`,
         hit.score,
       );
     }

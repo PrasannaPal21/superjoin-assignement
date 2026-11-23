@@ -6,11 +6,13 @@ import {
 } from "@/lib/config";
 import { getFactEmbedding } from "@/lib/db/embeddings";
 import {
+  getFactsByIds,
   getFactsByMatchKey,
   type FactRow,
 } from "@/lib/db/facts";
 import { denseSearch } from "@/lib/embeddings/dense";
 import { buildFactCard } from "@/lib/embeddings/index-text";
+import { applyMetadataSoftBoosts } from "@/lib/embeddings/metadata-filters";
 import { reciprocalRankFusion } from "@/lib/embeddings/rrf";
 import { sparseSearch } from "@/lib/embeddings/sparse";
 
@@ -21,6 +23,7 @@ export type HybridHit = {
   factId: string;
   score: number;
   channels: HybridChannel[];
+  boosts: string[];
 };
 
 export type HybridRetrieveOptions = {
@@ -29,11 +32,13 @@ export type HybridRetrieveOptions = {
   denseTopK?: number;
   rrfTopN?: number;
   rrfK?: number;
+  /** Skip soft entity/unit/type/period multipliers. */
+  skipMetadataBoosts?: boolean;
 };
 
 /**
  * Hybrid candidate recall for one new fact:
- * match_key ∪ BM25 ∪ dense → RRF fusion.
+ * match_key ∪ BM25 ∪ dense → RRF → soft metadata boosts (no period hard-drop).
  */
 export function hybridRetrieveForFact(
   fact: FactRow,
@@ -77,9 +82,20 @@ export function hybridRetrieveForFact(
     { k: rrfK, topN: rrfTopN },
   );
 
-  return fused.map((hit) => ({
+  const baseHits: HybridHit[] = fused.map((hit) => ({
     factId: hit.id,
     score: hit.score,
     channels: hit.lists.map((i) => HYBRID_CHANNELS[i]),
+    boosts: [],
   }));
+
+  if (opts.skipMetadataBoosts || baseHits.length === 0) {
+    return baseHits.slice(0, rrfTopN);
+  }
+
+  const candidatesById = new Map(
+    getFactsByIds(baseHits.map((h) => h.factId)).map((f) => [f.id, f]),
+  );
+  const boosted = applyMetadataSoftBoosts(fact, baseHits, candidatesById);
+  return boosted.slice(0, rrfTopN);
 }

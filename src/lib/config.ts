@@ -98,6 +98,24 @@ export function getRrfK(): number {
   return Math.max(1, Number(process.env.RRF_K || "60"));
 }
 
+/** Soft RRF score multipliers (metadata filters — never hard-drop periods). */
+export function getEntityFamilyBoost(): number {
+  return Math.max(1, Number(process.env.ENTITY_FAMILY_BOOST || "1.35"));
+}
+
+export function getUnitMatchBoost(): number {
+  return Math.max(1, Number(process.env.UNIT_MATCH_BOOST || "1.1"));
+}
+
+export function getFactTypeBoost(): number {
+  return Math.max(1, Number(process.env.FACT_TYPE_BOOST || "1.15"));
+}
+
+/** Soft only — different periods stay in the candidate set for reconciled. */
+export function getPeriodMatchBoost(): number {
+  return Math.max(1, Number(process.env.PERIOD_MATCH_BOOST || "1.08"));
+}
+
 export function getMatchBatchSize(): number {
   return Math.max(2, Number(process.env.MATCH_BATCH_SIZE || "6"));
 }

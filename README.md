@@ -104,6 +104,7 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `MAX_EXTRACT_CHUNKS` | Hard cap extract calls / PDF | `16` |
 | `SPARSE_TOP_K` / `DENSE_TOP_K` | BM25 / dense lists before RRF | `20` / `20` |
 | `RRF_K` / `RRF_TOP_N` | RRF constant / fused keep | `60` / `30` |
+| `ENTITY_FAMILY_BOOST` / `UNIT_MATCH_BOOST` / `FACT_TYPE_BOOST` / `PERIOD_MATCH_BOOST` | Soft RRF multipliers (no period hard-drop) | `1.35` / `1.1` / `1.15` / `1.08` |
 | `MAX_MATCH_PAIRS` | Cap after RRF / before rerank budget | `16` |
 | `RERANK_TOP_N` / `RERANK_TOP_M` | Rerank in → out | `30` / `12` |
 | `RERANK_MIN_SCORE` | Drop weak pairs / passages | `0.35` |
