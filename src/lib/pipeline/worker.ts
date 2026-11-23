@@ -26,6 +26,7 @@ import { suggestionForError } from "@/lib/pipeline/error-hints";
 import { getGroqApiKey } from "@/lib/llm/groq";
 import { indexDocumentEmbeddings } from "@/lib/embeddings/index-document";
 import { isEmbeddingsConfigured } from "@/lib/embeddings/client";
+import { indexDocumentSparse } from "@/lib/embeddings/sparse";
 
 let matchNewDocumentFacts: (documentId: string) => Promise<void> = async () => {
   /* no-op until matcher lands */
@@ -197,6 +198,29 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
           summary: "Dense embedding indexing failed after extraction",
           detail: message,
           suggestion: suggestionForError("embed", message),
+        });
+      }
+    }
+
+    if (factCount > 0) {
+      updateJobProgress(jobId, "indexing sparse / BM25", 0, 1);
+      try {
+        const sparse = indexDocumentSparse(documentId);
+        updateJobProgress(
+          jobId,
+          `sparse-indexed ${sparse.factsIndexed} facts`,
+          1,
+          1,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "sparse index failed";
+        insertFailure({
+          id: randomUUID(),
+          document_id: documentId,
+          stage: "sparse",
+          summary: "Sparse/BM25 indexing failed after extraction",
+          detail: message,
+          suggestion: suggestionForError("sparse", message),
         });
       }
     }

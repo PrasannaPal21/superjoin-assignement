@@ -23,5 +23,8 @@ export function suggestionForError(stage: string, message: string): string {
     }
     return "Facts were kept. Fix the embedding provider/model, then re-process to fill fact_embeddings.";
   }
+  if (stage === "sparse") {
+    return "Facts were kept. Re-process the document to rebuild sparse/BM25 postings.";
+  }
   return "Inspect the error detail, fix configuration, and re-upload or re-process the document.";
 }

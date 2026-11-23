@@ -153,7 +153,7 @@ flowchart TD
 | Extract | Top children + parent context | Facts + evidence | [`extract.ts`](../src/lib/llm/extract.ts) + [`select-extract.ts`](../src/lib/pdf/select-extract.ts); Zod + repair |
 | Fact card | Fact row | Canonical string | See §5 |
 | Embed | Fact card / quote | Vectors | Versioned `embedding_model` |
-| Sparse index | Tokens from claim/entity/type | BM25 / lexical posting | Complements dense |
+| Sparse index | Fact-card tokens | `fact_sparse_postings` + BM25 | [`sparse.ts`](../src/lib/embeddings/sparse.ts) — `indexDocumentSparse` / `sparseSearch` |
 | Metadata | Structured fields | Filterable columns | Used at retrieve time |
 
 ---
@@ -425,10 +425,13 @@ flowchart LR
     client[client.ts]
     codec[vector-codec.ts]
     indexDoc[index-document.ts]
+    sparse[sparse.ts]
   end
   subgraph dbemb [src/lib/db]
     migrateEmb[migrate-embeddings.ts]
     embCrud[embeddings.ts]
+    migrateSparse[migrate-sparse.ts]
+    sparseCrud[sparse.ts]
   end
   subgraph llm [src/lib/llm]
     groq[groq.ts]
@@ -440,7 +443,11 @@ flowchart LR
   indexDoc --> indexText --> client
   client --> codec --> embCrud
   migrateEmb --> embCrud
+  extract --> sparse
+  sparse --> sparseCrud
+  migrateSparse --> sparseCrud
   indexDoc --> match
+  sparse --> match
   match --> candidates --> rerank --> classify
   classify --> llm
 ```

@@ -33,7 +33,7 @@ UI (Next.js) → API routes → job queue → pipeline worker
 | `facts` | Normalized claims (`fact_type` free-form; `match_key`) |
 | `evidence` | Quote + page grounding |
 | `fact_embeddings` / `evidence_embeddings` | Dense Float32 BLOB vectors + `model` / `dimensions` / `index_text` ([`migrate-embeddings.ts`](../src/lib/db/migrate-embeddings.ts), [`embeddings.ts`](../src/lib/db/embeddings.ts)) |
-| Sparse / BM25 postings | Lexical recall over claim / entity / type |
+| `fact_sparse_docs` / `fact_sparse_postings` | BM25 lexical index over fact cards ([`migrate-sparse.ts`](../src/lib/db/migrate-sparse.ts), [`sparse.ts`](../src/lib/embeddings/sparse.ts) → `sparseSearch`) |
 | `relations` | Pairwise links + `review_status` (HITL) |
 | `failures` | Honest failure journal |
 
@@ -49,7 +49,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)).
 5. **Parent–child hierarchy** — [`hierarchy.ts`](../src/lib/pdf/hierarchy.ts) / [`parents.ts`](../src/lib/pdf/parents.ts) / [`children.ts`](../src/lib/pdf/children.ts): blocks → `kind=parent` → `kind=child` with `parent_id`. Flat page-packing is removed.
 6. **Extract** — Groq JSON on **child** chunks with parent/section context (`GROQ_EXTRACT_MODEL`); top children by signal capped by `MAX_EXTRACT_CHUNKS` ([`select-extract.ts`](../src/lib/pdf/select-extract.ts)); Zod + JSON repair; ~12 facts / child. Evidence quotes come from the child excerpt.
-7. **Index** — `match_key`; after extract, [`indexDocumentEmbeddings`](../src/lib/embeddings/index-document.ts) builds fact cards / evidence texts, embeds (local MiniLM), upserts Float32 BLOBs; skips rows already stored for the active `embedding_model`; sparse tokens next.
+7. **Index** — `match_key`; after extract, [`indexDocumentEmbeddings`](../src/lib/embeddings/index-document.ts) embeds fact/evidence cards; [`indexDocumentSparse`](../src/lib/embeddings/sparse.ts) writes BM25 postings (`sparseSearch` for lexical recall).
 
 ### Query-time (Compare)
 
