@@ -25,7 +25,7 @@
 | Vectors | pgvector (same fact/evidence embedding tables) |
 | Files | S3-compatible object storage |
 | Workers | Separate worker service(s); horizontal replicas |
-| Rerank | Optional cross-encoder behind the same `rerank.ts` interface |
+| Rerank | Cascade CE (`RERANK_PROVIDER=cascade`) with rare LLM mid-band; swap to `cross_encoder` / `llm` via env |
 | OCR | Local Tesseract is on by default; raise `OCR_MAX_PAGES` / concurrency or swap to PaddleOCR/Docling for harder tables |
 | Tenancy | Auth + `tenant_id` on documents/facts/embeddings |
 

@@ -83,7 +83,7 @@ flowchart TB
     QEmbed[Embed_query_or_fact_card]
     Hybrid[Hybrid_retrieve]
     RRF[RRF_fusion]
-    Rerank[LLM_reranker]
+    Rerank[Cascade_CE_plus_rare_LLM]
     Branch{Path}
     Heuristic[Heuristic_relation_classify]
     RelLLM[LLM_relation_classify]
@@ -262,17 +262,23 @@ flowchart TD
   Meta[Metadata_soft_hard_filters] --> RRF
 
   RRF --> TopN[Top_N_about_30]
-  TopN --> RR[LLM_batch_rerank_scores_0_to_1]
-  RR --> Cut[Drop_below_threshold]
-  Cut --> TopM[Top_M_about_8_to_16]
-  TopM --> Cls[Classify_stage]
+  TopN --> CE[Cross_encoder_scores_all]
+  CE -->|s >= CE_HIGH| Keep[Accept_CE]
+  CE -->|s <= CE_LOW| Drop[Reject]
+  CE -->|mid| LLM[Rare_LLM_pointwise]
+  Keep --> Merge[Blend_sort_top_M]
+  LLM --> Merge
+  Drop --> X[Discard]
+  Merge --> Cls[Classify_stage]
 ```
 
 **RRF:** for each candidate id,  
 `score = Σ 1 / (k + rank_in_list_i)` across match_key / BM25 / dense lists, then sort  
 ([`rrf.ts`](../src/lib/embeddings/rrf.ts), default `k=60` via `RRF_K`).
 
-**Compare wiring:** [`hybridRetrieveForFact`](../src/lib/embeddings/hybrid.ts) → [`findCandidatePairs`](../src/lib/pipeline/match-candidates.ts) → existing heuristic/LLM classify.
+**Cascade rerank:** CE (`Xenova/ms-marco-MiniLM-L-6-v2`) scores every pair; LLM only when `CE_LOW < s < CE_HIGH` (capped by `RERANK_LLM_MAX_PER_DOC`). Final mid score = `α·CE + (1-α)·LLM` (`RERANK_CE_BLEND`).
+
+**Compare wiring:** hybrid → [`rerankFactPairs`](../src/lib/pipeline/rerank.ts) → heuristic/LLM classify.
 
 **Metadata (soft only):** [`metadataSoftBoost`](../src/lib/embeddings/metadata-filters.ts) multiplies RRF scores for same entity family / unit / fact_type / period (`ENTITY_FAMILY_BOOST`, …). Different periods are **kept** so classify can emit `reconciled`. Period stays out of `match_key` by design.
 
@@ -480,7 +486,8 @@ flowchart LR
 | 9 | Evidence Ask prep | done | [`hybrid-ask.ts`](../src/lib/embeddings/hybrid-ask.ts) |
 | 10 | Fixtures + smoke | done | [`fixtures.ts`](../src/lib/embeddings/fixtures.ts), `npm run smoke:hybrid` |
 
-**Not in this pipeline (next phases):** LLM rerank, Ask generation, HITL conflict gate, GraphRAG.
+**Not in this pipeline (next phases):** Ask generation, HITL conflict gate, GraphRAG.  
+**Rerank:** cascade CE + rare LLM — implemented (`RERANK_PROVIDER=cascade`).
 
 Smoke:
 

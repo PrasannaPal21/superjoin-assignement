@@ -120,6 +120,75 @@ export function getMatchBatchSize(): number {
   return Math.max(2, Number(process.env.MATCH_BATCH_SIZE || "6"));
 }
 
+/** cascade (default) | cross_encoder | llm */
+export function getRerankProvider(): "cascade" | "cross_encoder" | "llm" {
+  const raw = process.env.RERANK_PROVIDER?.trim().toLowerCase();
+  if (raw === "cross_encoder" || raw === "ce" || raw === "local") {
+    return "cross_encoder";
+  }
+  if (raw === "llm" || raw === "groq") return "llm";
+  return "cascade";
+}
+
+export function getRerankCeModel(): string {
+  return (
+    process.env.RERANK_CE_MODEL?.trim() ||
+    "Xenova/ms-marco-MiniLM-L-6-v2"
+  );
+}
+
+export function getRerankTopN(): number {
+  return Math.max(1, Number(process.env.RERANK_TOP_N || "30"));
+}
+
+export function getRerankTopM(): number {
+  return Math.max(1, Number(process.env.RERANK_TOP_M || "12"));
+}
+
+export function getRerankMinScore(): number {
+  const n = Number(process.env.RERANK_MIN_SCORE || "0.35");
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.35;
+}
+
+/** CE scores ≥ this are accepted without LLM. */
+export function getCeHigh(): number {
+  const n = Number(process.env.CE_HIGH || "0.72");
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.72;
+}
+
+/** CE scores ≤ this are rejected without LLM. */
+export function getCeLow(): number {
+  const n = Number(process.env.CE_LOW || "0.35");
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.35;
+}
+
+/** final = α*CE + (1-α)*LLM on mid-band. */
+export function getRerankCeBlend(): number {
+  const n = Number(process.env.RERANK_CE_BLEND || "0.6");
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.6;
+}
+
+export function getRerankLlmBatchSize(): number {
+  return Math.max(1, Number(process.env.RERANK_LLM_BATCH || "8"));
+}
+
+/** Cap rare LLM mid-band calls per document match. */
+export function getRerankLlmMaxPerDoc(): number {
+  return Math.max(0, Number(process.env.RERANK_LLM_MAX_PER_DOC || "24"));
+}
+
+export function getGroqRerankModel(): string {
+  return (
+    process.env.GROQ_RERANK_MODEL?.trim() ||
+    getGroqExtractModel() ||
+    getGroqModel()
+  );
+}
+
+export function getRerankCacheDir(): string {
+  return process.env.RERANK_CACHE_DIR?.trim() || ".cache/rerank";
+}
+
 export function getMaxConcurrentJobs(): number {
   return Math.max(1, Number(process.env.MAX_CONCURRENT_JOBS || "1"));
 }

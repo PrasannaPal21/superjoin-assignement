@@ -107,8 +107,12 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `RRF_K` / `RRF_TOP_N` | RRF constant / fused keep | `60` / `30` |
 | `ENTITY_FAMILY_BOOST` / `UNIT_MATCH_BOOST` / `FACT_TYPE_BOOST` / `PERIOD_MATCH_BOOST` | Soft RRF multipliers (no period hard-drop) | `1.35` / `1.1` / `1.15` / `1.08` |
 | `MAX_MATCH_PAIRS` | Cap after RRF / before rerank budget | `16` |
+| `RERANK_PROVIDER` | `cascade` (CE+rare LLM) / `cross_encoder` / `llm` | `cascade` |
+| `RERANK_CE_MODEL` | Local cross-encoder (Transformers.js) | `Xenova/ms-marco-MiniLM-L-6-v2` |
 | `RERANK_TOP_N` / `RERANK_TOP_M` | Rerank in → out | `30` / `12` |
-| `RERANK_MIN_SCORE` | Drop weak pairs / passages | `0.35` |
+| `CE_HIGH` / `CE_LOW` | Accept / reject without LLM | `0.72` / `0.35` |
+| `RERANK_CE_BLEND` | Mid-band `α·CE+(1-α)·LLM` | `0.6` |
+| `RERANK_MIN_SCORE` | Drop weak pairs after cascade | `0.35` |
 | `MATCH_BATCH_SIZE` | Pairs per classify API call | `6` |
 | `CONFLICT_REVIEW_THRESHOLD` | Conflicts below this → HITL | `0.75` |
 | `MAX_CONCURRENT_JOBS` | Parallel documents | `1` |

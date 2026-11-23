@@ -55,7 +55,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 ### Query-time (Compare)
 
 8. **Hybrid recall** — per new fact: `match_key` ∪ BM25 ∪ dense → RRF → soft metadata boosts ([`metadata-filters.ts`](../src/lib/embeddings/metadata-filters.ts): entity/unit/type/period; **never** hard-drop different periods). Caps: `SPARSE_TOP_K` / `DENSE_TOP_K` / `RRF_TOP_N` / `MAX_MATCH_PAIRS`.
-9. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
+9. **Rerank (cascade)** — local cross-encoder scores all pairs; LLM only on CE mid-band (`CE_LOW`–`CE_HIGH`); blend + keep `RERANK_TOP_M` above `RERANK_MIN_SCORE` ([`rerank.ts`](../src/lib/pipeline/rerank.ts)).
 10. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
 11. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
 
@@ -67,8 +67,8 @@ New documents match **against existing facts only**. Older documents are not re-
 
 ## LLM & embedding boundary
 
-- **Groq** — extract, classify, rerank, Ask (role-specific models).
-- **Embeddings** — free local open-source MiniLM (`Xenova/all-MiniLM-L6-v2` via Transformers.js); optional HTTP provider.
+- **Groq** — extract, classify, rare mid-band rerank, Ask (role-specific models).
+- **Embeddings / CE** — free local MiniLM embedder + `ms-marco-MiniLM-L-6-v2` cross-encoder via Transformers.js.
 - PDF text treated as **untrusted data**.
 - Structured outputs validated with Zod.
 

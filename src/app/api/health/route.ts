@@ -6,6 +6,8 @@ import {
   getEmbeddingProvider,
   getGroqFallbackModels,
   getGroqModel,
+  getRerankCeModel,
+  getRerankProvider,
   isEmbeddingsConfigured,
 } from "@/lib/config";
 import { ensureDb } from "@/lib/db";
@@ -42,6 +44,10 @@ export async function GET() {
         model: getEmbeddingModel(),
         dimensions: getEmbeddingDimensions(),
         cacheDir: getEmbeddingCacheDir(),
+      },
+      rerank: {
+        provider: getRerankProvider(),
+        ceModel: getRerankCeModel(),
       },
     });
   } catch (err) {

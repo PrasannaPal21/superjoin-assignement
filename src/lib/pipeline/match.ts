@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { getRerankTopN } from "@/lib/config";
 import { insertRelation, clearRelations, listFacts, updateFactMatchKey } from "@/lib/db/facts";
 import { listDocuments } from "@/lib/db/documents";
 import {
@@ -7,10 +8,12 @@ import {
   getConfiguredMatchBatchSize,
 } from "@/lib/pipeline/classify-relation";
 import { findCandidatePairs } from "@/lib/pipeline/match-candidates";
+import { rerankFactPairs } from "@/lib/pipeline/rerank";
 import { buildMatchKey } from "@/lib/pipeline/extract-stage";
 import { mapPool } from "@/lib/pipeline/pool";
 import { setMatchHandler } from "@/lib/pipeline/worker";
 import { insertFailure } from "@/lib/db/facts";
+import { suggestionForError } from "@/lib/pipeline/error-hints";
 
 function refreshMatchKeys(): number {
   let n = 0;
@@ -30,7 +33,24 @@ function refreshMatchKeys(): number {
 }
 
 export async function matchDocumentFacts(documentId: string): Promise<number> {
-  const pairs = findCandidatePairs(documentId);
+  const recalled = findCandidatePairs(documentId, getRerankTopN());
+  let pairs = recalled;
+  try {
+    const reranked = await rerankFactPairs(recalled);
+    pairs = reranked.pairs;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "rerank failed";
+    insertFailure({
+      id: randomUUID(),
+      document_id: documentId,
+      stage: "rerank",
+      summary: "Cascade/CE rerank failed; continuing with hybrid pairs",
+      detail: message,
+      suggestion: suggestionForError("rerank", message),
+    });
+    pairs = recalled.slice(0, Math.min(recalled.length, 12));
+  }
+
   let written = 0;
 
   const needsLlm = [];

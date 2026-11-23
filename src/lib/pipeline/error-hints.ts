@@ -26,5 +26,8 @@ export function suggestionForError(stage: string, message: string): string {
   if (stage === "sparse") {
     return "Facts were kept. Re-process the document to rebuild sparse/BM25 postings.";
   }
+  if (stage === "rerank") {
+    return "Hybrid pairs were kept. Check RERANK_CE_MODEL cache or set RERANK_PROVIDER=llm; rematch when healthy.";
+  }
   return "Inspect the error detail, fix configuration, and re-upload or re-process the document.";
 }
