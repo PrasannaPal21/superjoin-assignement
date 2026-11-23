@@ -17,5 +17,11 @@ export function suggestionForError(stage: string, message: string): string {
   if (stage === "match") {
     return "Extracted facts were kept. Re-queue matching after the model endpoint is healthy.";
   }
+  if (stage === "embed") {
+    if (/EMBEDDING_API_KEY|HTTP/i.test(message)) {
+      return "For EMBEDDING_PROVIDER=http set EMBEDDING_API_KEY; or switch to EMBEDDING_PROVIDER=local (default MiniLM).";
+    }
+    return "Facts were kept. Fix the embedding provider/model, then re-process to fill fact_embeddings.";
+  }
   return "Inspect the error detail, fix configuration, and re-upload or re-process the document.";
 }

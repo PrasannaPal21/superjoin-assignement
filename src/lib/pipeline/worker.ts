@@ -24,6 +24,8 @@ import {
 import { mapPool } from "@/lib/pipeline/pool";
 import { suggestionForError } from "@/lib/pipeline/error-hints";
 import { getGroqApiKey } from "@/lib/llm/groq";
+import { indexDocumentEmbeddings } from "@/lib/embeddings/index-document";
+import { isEmbeddingsConfigured } from "@/lib/embeddings/client";
 
 let matchNewDocumentFacts: (documentId: string) => Promise<void> = async () => {
   /* no-op until matcher lands */
@@ -172,6 +174,32 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       },
     );
     const factCount = extractionResults.reduce((a, b) => a + b, 0);
+
+    if (factCount > 0 && isEmbeddingsConfigured()) {
+      updateJobProgress(jobId, "embedding facts + evidence", 0, 1);
+      try {
+        const emb = await indexDocumentEmbeddings(documentId, {
+          onProgress: (label, current, total) =>
+            updateJobProgress(jobId, label, current, total),
+        });
+        updateJobProgress(
+          jobId,
+          `embedded ${emb.factsIndexed} facts / ${emb.evidenceIndexed} evidence (skipped ${emb.factsSkipped + emb.evidenceSkipped})`,
+          1,
+          1,
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "embed failed";
+        insertFailure({
+          id: randomUUID(),
+          document_id: documentId,
+          stage: "embed",
+          summary: "Dense embedding indexing failed after extraction",
+          detail: message,
+          suggestion: suggestionForError("embed", message),
+        });
+      }
+    }
 
     updateJobProgress(jobId, "matching", 0, 1);
     try {

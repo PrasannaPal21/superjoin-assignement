@@ -133,6 +133,15 @@ export function listEvidenceForFact(factId: string): EvidenceRow[] {
     .all(factId) as EvidenceRow[];
 }
 
+export function listEvidenceForDocument(documentId: string): EvidenceRow[] {
+  ensureDb();
+  return getDb()
+    .prepare(
+      `SELECT * FROM evidence WHERE document_id = ? ORDER BY created_at DESC`,
+    )
+    .all(documentId) as EvidenceRow[];
+}
+
 export function listRelations(type?: string): RelationRow[] {
   ensureDb();
   if (type) {

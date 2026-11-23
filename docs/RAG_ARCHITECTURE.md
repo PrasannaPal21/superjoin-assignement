@@ -193,7 +193,8 @@ Table children keep **row label + period columns + values** together so period/s
 
 ## 5. Embedding strategy
 
-Index text builders (step 1, no API yet): [`src/lib/embeddings/index-text.ts`](../src/lib/embeddings/index-text.ts).
+Index text builders: [`index-text.ts`](../src/lib/embeddings/index-text.ts).  
+Index-time embed after extract: [`index-document.ts`](../src/lib/embeddings/index-document.ts) (wired in the pipeline worker; skip/re-embed on model bump).
 
 ### Fact card template (Compare / matching)
 
@@ -423,6 +424,7 @@ flowchart LR
     indexText[index-text.ts]
     client[client.ts]
     codec[vector-codec.ts]
+    indexDoc[index-document.ts]
   end
   subgraph dbemb [src/lib/db]
     migrateEmb[migrate-embeddings.ts]
@@ -434,10 +436,11 @@ flowchart LR
   end
 
   parse --> structure --> chunk --> extract
-  extract --> indexText --> client
+  extract --> indexDoc
+  indexDoc --> indexText --> client
   client --> codec --> embCrud
   migrateEmb --> embCrud
-  extract --> match
+  indexDoc --> match
   match --> candidates --> rerank --> classify
   classify --> llm
 ```
