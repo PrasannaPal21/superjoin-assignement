@@ -2,52 +2,74 @@
 
 ## Goal
 
-Turn uploaded PDFs into a **fact knowledge layer**: grounded claims with evidence, then cross-document relations (`corroborates` / Agrees, `contradicts` / Conflicts, `reconciled` / Different context).
+Turn uploaded PDFs into a **fact knowledge layer** powered by **Classical Hybrid RAG**: grounded claims with evidence, hybrid retrieval across documents, reranked candidates, then either:
+
+- **Compare** — relations `corroborates` (Agrees) / `contradicts` (Conflicts) / `reconciled` (Different context), or
+- **Ask** — citation-grounded answers over the same index.
 
 Document-agnostic: no hard-coded company facts, filenames, or schemas. New PDFs extend the layer incrementally.
 
+Full RAG diagrams: [RAG_ARCHITECTURE.md](RAG_ARCHITECTURE.md).
+
 ## Components
 
-```
-UI (Next.js) → API routes → SQLite job queue → in-process worker
+```text
+UI (Next.js) → API routes → job queue → pipeline worker
                                       ↓
-              parse → signal-aware chunk → Groq extract → match
+     parse → structure parent/child → extract → embed (dense+sparse)
                                       ↓
-                       facts + evidence + relations
+              hybrid recall → RRF → rerank → classify | Ask
+                                      ↓
+              facts + evidence + embeddings + relations
 ```
 
-### Storage (SQLite)
+### Storage
 
-| Table | Role |
-|-------|------|
+| Table / index | Role |
+|---------------|------|
 | `documents` | Upload metadata, content hash, status |
-| `jobs` | Queue + progress checkpoints |
-| `chunks` | Page-range text units |
-| `facts` | Normalized claims (`fact_type` is free-form and evolves) |
+| `jobs` / `pipeline_runs` | Queue + progress checkpoints |
+| `chunks` | Parent/child text units (`kind`, `parent_id`, section title) |
+| `facts` | Normalized claims (`fact_type` free-form; `match_key`) |
 | `evidence` | Quote + page grounding |
-| `relations` | Pairwise cross-doc links |
+| `fact_embeddings` / `evidence_embeddings` | Dense vectors + `embedding_model` |
+| Sparse / BM25 postings | Lexical recall over claim / entity / type |
+| `relations` | Pairwise links + `review_status` (HITL) |
 | `failures` | Honest failure journal |
 
-Zero-ops locally; schema maps cleanly to Postgres later ([SCALABILITY.md](SCALABILITY.md)).
+Local default: SQLite with a vector extension. Schema maps cleanly to Postgres + pgvector ([SCALABILITY.md](SCALABILITY.md)).
 
-### Pipeline stages
+## Pipeline stages
 
-1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 hash (dedupe).
-2. **Parse** — pdf.js per-page text. Sparse/image pages land in the failure journal (no OCR in v1).
-3. **Chunk** — high-signal pages packed by page/char budget (`CHUNK_PAGES`, `CHUNK_CHAR_BUDGET`), capped by `MAX_EXTRACT_CHUNKS`.
-4. **Extract** — Groq JSON (`GROQ_EXTRACT_MODEL`, default cheaper 20b) with Zod + JSON repair + one retry; max ~12 facts / chunk.
-5. **Match** — candidate pairs (`match_key` + similarity), capped by `MAX_MATCH_PAIRS`.
-6. **Classify** — heuristics for clear numeric/period cases; batched LLM for the rest (`MATCH_BATCH_SIZE`).
-7. **Persist** — only non-`unrelated` relations.
+### Index-time
 
-New documents match **against existing facts only**. Older documents are not re-extracted.
+1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 dedupe.
+2. **Parse** — pdf.js per-page text. Sparse/image pages → failure journal (OCR optional follow-on).
+3. **Signal prior** — prefer KPI-dense pages; deprioritize TOC/glossary (budget only, not cut boundaries).
+4. **Structure + parent/child** — sections/tables as parents; KPI spans / row groups as children.
+5. **Extract** — Groq JSON on children with parent context (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk.
+6. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
 
-### LLM boundary
+### Query-time (Compare)
 
-- Provider: Groq (OpenAI-compatible).
+7. **Hybrid recall** — exact `match_key` ∪ BM25 ∪ dense top-K; metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
+8. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
+9. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
+10. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
+
+### Query-time (Ask)
+
+11. Embed question → hybrid retrieve facts/evidence → RRF → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
+
+New documents match **against existing facts only**. Older documents are not re-extracted on every ingest.
+
+## LLM & embedding boundary
+
+- **Groq** — extract, classify, rerank, Ask (role-specific models).
+- **Embedding API** — OpenAI-compatible; same model for index and query.
 - PDF text treated as **untrusted data**.
 - Structured outputs validated with Zod.
 
-### UI
+## UI
 
-Document rail + **Facts** (ledger) / **Compare** (plain-language relations) / **Issues** (demo coverage + pipeline log).
+Document rail + **Facts** / **Compare** / **Ask** / **Issues** (demo coverage, HITL review, pipeline log).

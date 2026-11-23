@@ -15,14 +15,16 @@ Form: https://forms.gle/3fLdBQ2D6Zm2Gqtv7
 ## Before you open the form
 
 1. **Repo is ready**
-   - `README.md` has Setup, Video Demo link, Approach, Limitations, Additional Notes
+   - `README.md` has Setup, Video Demo link, Approach (Classical Hybrid RAG), Limitations, Additional Notes
+   - Docs describe the hybrid RAG pipeline: [RAG_ARCHITECTURE.md](RAG_ARCHITECTURE.md), [ARCHITECTURE.md](ARCHITECTURE.md)
    - No `.env` / secrets committed (`git status` clean of secrets)
    - `npm install && npm run build` succeeds locally
-   - Prefer 25+ meaningful commits (this repo already has a full history)
+   - Prefer 25+ meaningful commits
 
 2. **Demo is reproducible**
-   - All three starter PDFs processed to **Ready**
+   - All three starter PDFs processed to **Ready** (extract + embed + match)
    - Compare shows Agrees / Conflicts / Different context (or Issues checklist says `yes`)
+   - Ask returns a cited answer (or an honest refuse)
    - Issues shows at least one pipeline log entry (or an honest failure)
 
 3. **Video**
@@ -32,7 +34,8 @@ Form: https://forms.gle/3fLdBQ2D6Zm2Gqtv7
 
 4. **Optional but strong**
    - Live deploy URL in README Additional Notes ([`DEPLOY.md`](DEPLOY.md))
-   - Sample output already in `fixtures/sample-output.json` if reviewers lack a Groq key
+   - Sample output in `fixtures/sample-output.json` if reviewers lack API keys
+   - `npm run eval` report for recall / relation quality
 
 ## Day-of checklist
 
@@ -46,6 +49,7 @@ Form: https://forms.gle/3fLdBQ2D6Zm2Gqtv7
 
 - Run from your README
 - Upload a **new** PDF (not only starter files)
-- Look for facts + evidence + cross-doc relations
+- Look for facts + evidence + hybrid cross-doc relations
+- Try Ask with citations when embeddings are configured
 - Watch for the four cases in the video
-- Read Approach + Limitations for engineering judgment
+- Read Approach + Limitations for engineering judgment (Classical Hybrid RAG narrative)

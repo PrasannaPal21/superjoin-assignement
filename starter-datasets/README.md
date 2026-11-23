@@ -1,6 +1,8 @@
 # Starter Dataset
 
-This folder contains a curated set of public Delhivery documents for the assignment. The two longer source documents have been reduced to 100 PDF pages while preserving the sections most relevant to fact extraction and cross-document reconciliation.
+Curated public Delhivery documents for exercising the Classical Hybrid RAG fact knowledge layer: parent/child extraction, hybrid recall (paraphrases across filings), three-way Compare relations, and grounded Ask.
+
+The two longer source documents are reduced to 100 PDF pages while preserving sections most relevant to fact extraction and cross-document reconciliation.
 
 ## Documents
 
@@ -26,6 +28,14 @@ This folder contains a curated set of public Delhivery documents for the assignm
 - Pages: 27
 - [Original source](https://www.bseindia.com/xml-data/corpfiling/AttachHis/d70668ee-4f13-485e-ba19-62bec5116a59.pdf)
 - Complete document retained
+
+## How to use with this project
+
+1. Configure Groq + embedding keys (see root README).
+2. Upload all three PDFs via the UI or `POST /api/upload`.
+3. Wait for **Ready**, then demonstrate **Facts**, **Compare** (Agrees / Conflicts / Different context), **Ask** (cited answers), and **Issues**.
+
+Demo script: [docs/DEMO_CASES.md](../docs/DEMO_CASES.md).
 
 ## Note
 
