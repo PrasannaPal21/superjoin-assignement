@@ -12,15 +12,47 @@ import { renderPdfPageToPng } from "@/lib/pdf/render-page";
 import { mapPool } from "@/lib/pipeline/pool";
 import type { PdfPage, PdfParseResult } from "./types";
 
+/**
+ * Build page text while preserving line breaks when pdf.js exposes them.
+ * Newlines make Step 2 section heading detection reliable.
+ */
 function pageTextFromContent(content: { items: unknown[] }): string {
-  const strings: string[] = [];
+  const parts: string[] = [];
+  let prevY: number | null = null;
+
   for (const item of content.items) {
-    if (item && typeof item === "object" && "str" in item) {
-      const str = (item as { str?: string }).str;
-      if (str) strings.push(str);
+    if (!item || typeof item !== "object" || !("str" in item)) continue;
+    const row = item as {
+      str?: string;
+      hasEOL?: boolean;
+      transform?: number[];
+    };
+    const str = row.str;
+    if (!str) continue;
+
+    const y =
+      Array.isArray(row.transform) && typeof row.transform[5] === "number"
+        ? row.transform[5]
+        : null;
+
+    // New visual line when Y jumps (pdf.js y grows upward; use absolute delta).
+    if (prevY != null && y != null && Math.abs(y - prevY) > 2) {
+      parts.push("\n");
+    } else if (parts.length > 0 && !parts[parts.length - 1].endsWith("\n")) {
+      parts.push(" ");
     }
+
+    parts.push(str);
+    if (row.hasEOL) parts.push("\n");
+    if (y != null) prevY = y;
   }
-  return strings.join(" ").replace(/\s+/g, " ").trim();
+
+  return parts
+    .join("")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**

@@ -14,6 +14,11 @@ import {
   selectHighSignalPages,
 } from "@/lib/pdf/signal";
 import {
+  detectSections,
+  isSectionHeading,
+  linesFromPageText,
+} from "@/lib/pdf/structure";
+import {
   getOcrMinTextChars,
   isOcrEnabled,
 } from "@/lib/config";
@@ -99,6 +104,53 @@ describe("signal scoring", () => {
       [...selected.map((p) => p.pageNumber)].sort((a, b) => a - b),
     );
     expect(selected.some((p) => p.pageNumber === 1)).toBe(false);
+  });
+});
+
+describe("structure detection (step 2)", () => {
+  it("recognizes common finance headings", () => {
+    expect(isSectionHeading("Financial Highlights")).toBe(true);
+    expect(isSectionHeading("Note 2: Revenue from operations")).toBe(true);
+    expect(isSectionHeading("MANAGEMENT DISCUSSION AND ANALYSIS")).toBe(true);
+    expect(
+      isSectionHeading(
+        "Revenue was ₹ 100 crore in FY24 with strong EBITDA margins across segments.",
+      ),
+    ).toBe(false);
+  });
+
+  it("splits pages into sections on heading boundaries", () => {
+    const pages = applyPageSignals([
+      {
+        pageNumber: 1,
+        text: "Table of contents ............ 1",
+      },
+      {
+        pageNumber: 2,
+        text: [
+          "Financial Highlights",
+          "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021.",
+          "EBITDA stood at ₹ 312 crore.",
+        ].join("\n"),
+      },
+      {
+        pageNumber: 3,
+        text: [
+          "Risk Factors",
+          "We face competitive pressure in logistics markets.",
+        ].join("\n"),
+      },
+    ]);
+    const sections = detectSections(selectHighSignalPages(pages));
+    expect(sections.length).toBeGreaterThanOrEqual(2);
+    expect(sections.some((s) => /financial highlights/i.test(s.title))).toBe(
+      true,
+    );
+    expect(sections.some((s) => /risk factors/i.test(s.title))).toBe(true);
+  });
+
+  it("linesFromPageText prefers embedded newlines", () => {
+    expect(linesFromPageText("A\nB\nC")).toEqual(["A", "B", "C"]);
   });
 });
 

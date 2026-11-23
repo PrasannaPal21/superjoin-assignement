@@ -145,8 +145,9 @@ flowchart TD
 | Parse | PDF | Page texts | pdf.js text layer first |
 | Local OCR | Sparse pages | OCR text | Tesseract.js + canvas; no LLM tokens; journal only if still empty |
 | Signal prior | Pages with text | `signalScore` per page | KPI/finance density via [`signal.ts`](../src/lib/pdf/signal.ts); TOC/glossary penalized; selects extract budget |
-| Structure segment | High-signal pages | Sections / tables | Boundaries from layout, not token windows (next) |
-| Parent–child | Sections | Parent + children | Extract on child; parent as context |
+| Structure segment | High-signal pages | `DocumentSection[]` | Heading heuristics in [`structure.ts`](../src/lib/pdf/structure.ts); inspect via job progress / `scripts/smoke-sections.ts` |
+| Table blocks | Sections | table vs narrative | Step 3 (next) |
+| Parent–child | Sections | Parent + children | Steps 4–6 |
 | Extract | Child + parent ctx | Facts + evidence | Cheaper extract model; Zod + repair |
 | Fact card | Fact row | Canonical string | See §5 |
 | Embed | Fact card / quote | Vectors | Versioned `embedding_model` |

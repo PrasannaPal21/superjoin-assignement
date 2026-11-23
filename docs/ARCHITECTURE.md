@@ -46,8 +46,8 @@ Local default: SQLite with a vector extension. Schema maps cleanly to Postgres +
 1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 dedupe.
 2. **Parse + local OCR** — pdf.js per-page text; sparse/image pages → rasterize → **Tesseract.js** (no LLM tokens). Journal only if text is still unusable after OCR.
 3. **Signal prior** — score each page for finance/KPI density ([`signal.ts`](../src/lib/pdf/signal.ts)); drop TOC/glossary; keep top pages under extract budget. Budget only — not section boundaries.
-4. **Structure + parent/child** — sections/tables as parents; KPI spans / row groups as children (next upgrade).
-5. **Extract** — Groq JSON on children with parent context (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk.
+4. **Structure (sections)** — detect finance headings on high-signal pages ([`structure.ts`](../src/lib/pdf/structure.ts)); table blocks + parent/child emit come next. Packing is still `flat` until those steps.
+5. **Extract** — Groq JSON on current flat packs (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk. Will move to children + parent context in later chunking steps.
 6. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
 
 ### Query-time (Compare)
