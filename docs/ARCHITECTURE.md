@@ -56,7 +56,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 
 8. **Hybrid recall** — per new fact: `match_key` ∪ BM25 ∪ dense → RRF → soft metadata boosts ([`metadata-filters.ts`](../src/lib/embeddings/metadata-filters.ts): entity/unit/type/period; **never** hard-drop different periods). Caps: `SPARSE_TOP_K` / `DENSE_TOP_K` / `RRF_TOP_N` / `MAX_MATCH_PAIRS`.
 9. **Rerank (cascade)** — local cross-encoder scores all pairs; LLM only on CE mid-band (`CE_LOW`–`CE_HIGH`); blend + keep `RERANK_TOP_M` above `RERANK_MIN_SCORE` ([`rerank.ts`](../src/lib/pipeline/rerank.ts)).
-10. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
+10. **Classify** — expanded heuristics (unit/scope/entity/type + numeric/period) in [`classify-relation.ts`](../src/lib/pipeline/classify-relation.ts); batched LLM only for leftovers (`MATCH_BATCH_SIZE`).
 11. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
 
 ### Query-time (Ask)

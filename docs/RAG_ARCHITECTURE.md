@@ -316,7 +316,15 @@ flowchart TD
 | `reconciled` | Different context | Explained by time / scope / units |
 | `unrelated` | — | Not stored |
 
-Heuristics short-circuit clear numeric/period cases; LLM only sees post-rerank ambiguous pairs.
+Heuristics (stage 1) short-circuit clear cases without Groq:
+- matching numbers → `corroborates`
+- equal numbers + different **unit/scope** → `reconciled`
+- different values + different **period/unit/scope** → `reconciled`
+- same period/unit/scope + conflicting numbers → `contradicts`
+- different entity family or fact type (weak rerank) → `unrelated` (dropped)
+- strong rerank + odd entity/type → leave for LLM
+
+LLM only sees remaining ambiguous post-rerank pairs.
 
 ---
 

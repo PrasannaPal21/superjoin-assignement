@@ -55,7 +55,9 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
 
   const needsLlm = [];
   for (const pair of pairs) {
-    const heuristic = classifyRelationHeuristic(pair.left, pair.right);
+    const heuristic = classifyRelationHeuristic(pair.left, pair.right, {
+      rerankScore: pair.score,
+    });
     if (heuristic) {
       if (heuristic.relationType === "unrelated") continue;
       insertRelation({
