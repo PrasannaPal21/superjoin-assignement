@@ -20,6 +20,7 @@ import {
 } from "@/lib/pdf/structure";
 import { childChunksFromParent } from "@/lib/pdf/children";
 import { parentChunksFromBlocks } from "@/lib/pdf/parents";
+import { selectExtractChildren } from "@/lib/pdf/select-extract";
 import {
   detectBlocksFromSections,
   isTableLine,
@@ -275,6 +276,63 @@ describe("child chunks (step 5)", () => {
     expect(children.some((c) => /Revenue from operations/.test(c.text))).toBe(
       true,
     );
+  });
+});
+
+describe("extract child selection (step 6)", () => {
+  it("keeps highest-signal children within MAX_EXTRACT_CHUNKS budget", () => {
+    const parent = {
+      pageStart: 1,
+      pageEnd: 1,
+      text: "parent",
+      tokenEstimate: 10,
+      signalScore: 1,
+      kind: "parent" as const,
+      sectionTitle: "Financial Highlights",
+      blockKind: "narrative" as const,
+    };
+    const jobs = [
+      {
+        childId: "low",
+        parent,
+        child: {
+          ...parent,
+          kind: "child" as const,
+          parentId: "p",
+          text: "low signal prose",
+          signalScore: 0.5,
+          blockKind: "narrative" as const,
+        },
+      },
+      {
+        childId: "high-table",
+        parent,
+        child: {
+          ...parent,
+          kind: "child" as const,
+          parentId: "p",
+          text: "Particulars FY24\nRevenue 100",
+          signalScore: 2,
+          blockKind: "table" as const,
+        },
+      },
+      {
+        childId: "mid",
+        parent,
+        child: {
+          ...parent,
+          kind: "child" as const,
+          parentId: "p",
+          text: "mid signal",
+          signalScore: 1.2,
+          blockKind: "narrative" as const,
+        },
+      },
+    ];
+    const selected = selectExtractChildren(jobs, 2);
+    expect(selected).toHaveLength(2);
+    expect(selected[0].childId).toBe("high-table");
+    expect(selected.map((j) => j.childId)).not.toContain("low");
   });
 });
 

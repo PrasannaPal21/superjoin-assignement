@@ -64,8 +64,13 @@ export async function extractAndStoreChunkFacts(opts: {
   documentId: string;
   chunkId: string;
   chunk: TextChunk;
+  /** Parent block text for context (step 6). */
+  parentContext?: string | null;
 }): Promise<number> {
-  const result = await extractFactsFromChunk(opts.chunk.text);
+  const result = await extractFactsFromChunk(opts.chunk.text, {
+    parentContext: opts.parentContext,
+    sectionTitle: opts.chunk.sectionTitle,
+  });
   let stored = 0;
 
   for (const fact of result.facts) {

@@ -49,7 +49,7 @@ Local default: SQLite with a vector extension. Schema maps cleanly to Postgres +
 4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)).
 5. **Parent chunks** — persist each block as `kind=parent` ([`parents.ts`](../src/lib/pdf/parents.ts)) with `section_title` + `block_kind`.
 6. **Child chunks** — split parents into `kind=child` with `parent_id` ([`children.ts`](../src/lib/pdf/children.ts)): narrative by ~200–800 tokens; tables as header + row groups.
-7. **Extract** — Groq JSON on current **flat** packs (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk. Next chunking step switches extract to children + parent context.
+7. **Extract** — Groq JSON on **child** chunks with parent/section context (`GROQ_EXTRACT_MODEL`); top children by signal capped by `MAX_EXTRACT_CHUNKS`; Zod + JSON repair; ~12 facts / child. Evidence quotes come from the child excerpt.
 8. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
 
 ### Query-time (Compare)

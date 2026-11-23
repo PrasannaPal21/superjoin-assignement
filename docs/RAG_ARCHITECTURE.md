@@ -149,7 +149,7 @@ flowchart TD
 | Table blocks | Sections | `DocumentBlock` (`table` \| `narrative`) | Number/header heuristics in [`tables.ts`](../src/lib/pdf/tables.ts); inspect via `scripts/smoke-blocks.ts` |
 | Parent chunks | Blocks | `chunks.kind=parent` | [`parents.ts`](../src/lib/pdf/parents.ts); stored before flat extract |
 | Child chunks | Parents | `chunks.kind=child` + `parent_id` | [`children.ts`](../src/lib/pdf/children.ts); narrative packs + table header/row groups |
-| Extract on children | Children + parent context | Facts + evidence | Step 6 (next) |
+| Extract on children | Top children + parent context | Facts + evidence | [`extract.ts`](../src/lib/llm/extract.ts) + [`select-extract.ts`](../src/lib/pdf/select-extract.ts); flat packs no longer used for extract |
 | Extract | Child + parent ctx | Facts + evidence | Cheaper extract model; Zod + repair |
 | Fact card | Fact row | Canonical string | See §5 |
 | Embed | Fact card / quote | Vectors | Versioned `embedding_model` |

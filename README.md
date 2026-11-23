@@ -127,8 +127,8 @@ Facts in filings are scattered, restated differently, or only *apparently* confl
 
 Single **Next.js** app (UI + API) with disk uploads, SQLite knowledge store, and dense + sparse indexes:
 
-1. **Structure-aware parent–child chunking** (signal score only prioritizes pages)
-2. **Groq structured extract** → facts + evidence
+1. **Structure-aware parent–child chunking** (signal prioritizes pages; sections/blocks → parents → children)
+2. **Groq structured extract on children** (+ parent context) → facts + evidence
 3. **Dual embeddings** — fact cards for Compare; evidence quotes for Ask
 4. **Hybrid recall** (`match_key` + BM25 + dense) → **RRF** → **LLM rerank**
 5. **Classify** — heuristics first; batched LLM for ambiguous pairs; HITL on weak conflicts

@@ -9,12 +9,15 @@ import {
   updateJobProgress,
 } from "@/lib/db/jobs";
 import { insertFailure } from "@/lib/db/facts";
-import { chunkPages } from "@/lib/pdf/chunk";
 import { extractPdfPages } from "@/lib/pdf/parse";
 import { applyPageSignals } from "@/lib/pdf/signal";
 import { summarizeSections } from "@/lib/pdf/structure";
 import { childChunksFromParent } from "@/lib/pdf/children";
 import { parentChunksFromBlocks } from "@/lib/pdf/parents";
+import {
+  selectExtractChildren,
+  type ExtractJob,
+} from "@/lib/pdf/select-extract";
 import {
   detectBlocksFromDocument,
   summarizeBlocks,
@@ -83,7 +86,6 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     updateJobProgress(jobId, "scoring page signals", 0, 1);
     applyPageSignals(parsed.pages);
 
-    // Steps 2–3: sections + table/narrative blocks (packing still flat until later steps).
     updateJobProgress(jobId, "detecting sections + table blocks", 0, 1);
     const { sections, blocks } = detectBlocksFromDocument(parsed.pages);
     updateJobProgress(
@@ -93,27 +95,25 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       1,
     );
 
-    // Steps 4–5: persist parents, then children linked by parent_id.
-    // Extract still runs on flat packs until step 6.
+    // Steps 4–5: persist parents + children; collect extract jobs.
     updateJobProgress(jobId, "persisting parent + child chunks", 0, 1);
     const parents = parentChunksFromBlocks(blocks);
-    let childCount = 0;
+    const extractJobs: ExtractJob[] = [];
     for (const parent of parents) {
       const parentId = persistChunk(documentId, parent);
       const children = childChunksFromParent(parent, parentId);
       for (const child of children) {
-        persistChunk(documentId, child);
-        childCount += 1;
+        const childId = persistChunk(documentId, child);
+        extractJobs.push({ child, childId, parent });
       }
     }
     updateJobProgress(
       jobId,
-      `stored ${parents.length} parents + ${childCount} children`,
+      `stored ${parents.length} parents + ${extractJobs.length} children`,
       0,
       1,
     );
 
-    // OCR success is normal — do not journal. Only fail when text is still unusable.
     if (parsed.emptyPageCount > parsed.pages.length * 0.8) {
       insertFailure({
         id: randomUUID(),
@@ -130,16 +130,17 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       });
     }
 
-    const chunks = chunkPages(parsed.pages);
-    if (chunks.length === 0) {
+    // Step 6: extract on highest-signal children with parent context (no flat packs).
+    const selected = selectExtractChildren(extractJobs);
+    if (selected.length === 0) {
       insertFailure({
         id: randomUUID(),
         document_id: documentId,
         stage: "parse",
-        summary: "No text chunks produced",
+        summary: "No child chunks available for extraction",
         detail: parsed.ocrPageCount
-          ? `pdf.js + local OCR (${parsed.ocrPageCount} pages) still produced no chunkable text.`
-          : "Parser returned no usable page text (OCR disabled or all pages empty).",
+          ? `pdf.js + local OCR (${parsed.ocrPageCount} pages) produced no extractable children.`
+          : "Structure pipeline produced no child chunks.",
         suggestion: suggestionForError("parse", "No text chunks produced"),
       });
       updateDocumentStatus(documentId, "failed", {
@@ -151,28 +152,28 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
 
     let completed = 0;
     const extractionResults = await mapPool(
-      chunks,
+      selected,
       getMaxConcurrentExtractions(),
-      async (chunk) => {
-        const chunkId = persistChunk(documentId, chunk);
+      async (job) => {
         try {
           const n = await extractAndStoreChunkFacts({
             documentId,
-            chunkId,
-            chunk,
+            chunkId: job.childId,
+            chunk: job.child,
+            parentContext: job.parent.text,
           });
           completed += 1;
-          updateJobProgress(jobId, "extracting", completed, chunks.length);
+          updateJobProgress(jobId, "extracting children", completed, selected.length);
           return n;
         } catch (err) {
           completed += 1;
-          updateJobProgress(jobId, "extracting", completed, chunks.length);
+          updateJobProgress(jobId, "extracting children", completed, selected.length);
           const message = err instanceof Error ? err.message : "extract failed";
           insertFailure({
             id: randomUUID(),
             document_id: documentId,
             stage: "extract",
-            summary: `Chunk ${chunk.pageStart}-${chunk.pageEnd} extraction failed`,
+            summary: `Child p.${job.child.pageStart}-${job.child.pageEnd} extraction failed`,
             detail: message,
             suggestion: suggestionForError("extract", message),
           });
@@ -198,7 +199,12 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     }
 
     updateDocumentStatus(documentId, "ready");
-    updateJobProgress(jobId, `done (${factCount} facts)`, 1, 1);
+    updateJobProgress(
+      jobId,
+      `done (${factCount} facts from ${selected.length}/${extractJobs.length} children)`,
+      1,
+      1,
+    );
     completeJob(jobId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "processing failed";
