@@ -29,7 +29,7 @@ UI (Next.js) → API routes → job queue → pipeline worker
 |---------------|------|
 | `documents` | Upload metadata, content hash, status |
 | `jobs` / `pipeline_runs` | Queue + progress checkpoints |
-| `chunks` | Parent/child text units (`kind`, `parent_id`, section title) |
+| `chunks` | Text units with hierarchy fields: `kind` (`flat` today; later `parent`/`child`), `parent_id`, `section_title` |
 | `facts` | Normalized claims (`fact_type` free-form; `match_key`) |
 | `evidence` | Quote + page grounding |
 | `fact_embeddings` / `evidence_embeddings` | Dense vectors + `embedding_model` |

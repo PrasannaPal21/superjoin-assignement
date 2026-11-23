@@ -351,9 +351,9 @@ erDiagram
     string id
     string kind
     string parent_id
+    string section_title
     int page_start
     int page_end
-    string section_title
   }
   FACTS {
     string id

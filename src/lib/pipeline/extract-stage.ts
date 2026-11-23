@@ -40,8 +40,10 @@ export function persistChunk(
   const id = randomUUID();
   getDb()
     .prepare(
-      `INSERT INTO chunks (id, document_id, page_start, page_end, text, token_estimate)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO chunks (
+         id, document_id, page_start, page_end, text, token_estimate,
+         kind, parent_id, section_title
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -50,6 +52,9 @@ export function persistChunk(
       chunk.pageEnd,
       chunk.text,
       chunk.tokenEstimate,
+      chunk.kind ?? "flat",
+      chunk.parentId ?? null,
+      chunk.sectionTitle ?? null,
     );
   return id;
 }

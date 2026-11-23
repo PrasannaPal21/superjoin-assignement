@@ -6,12 +6,21 @@ import {
 import { scorePageSignal, selectHighSignalPages } from "@/lib/pdf/signal";
 import type { PdfPage } from "./types";
 
+/** Parent = section/table context; child = extract unit; flat = legacy page-pack (step 1). */
+export type ChunkKind = "parent" | "child" | "flat";
+
 export type TextChunk = {
   pageStart: number;
   pageEnd: number;
   text: string;
   tokenEstimate: number;
   signalScore: number;
+  /** Hierarchy role — packing today emits `flat` until structure steps land. */
+  kind: ChunkKind;
+  /** Set on children once parents exist (steps 4–5). */
+  parentId?: string | null;
+  /** Section / table title when known (steps 2+). */
+  sectionTitle?: string | null;
 };
 
 function estimateTokens(text: string): number {
@@ -35,6 +44,10 @@ function buildChunk(slice: PdfPage[]): TextChunk {
     text: capped,
     tokenEstimate: estimateTokens(capped),
     signalScore,
+    // Step 1: current packer stays behavior-identical; mark as flat extract units.
+    kind: "flat",
+    parentId: null,
+    sectionTitle: null,
   };
 }
 

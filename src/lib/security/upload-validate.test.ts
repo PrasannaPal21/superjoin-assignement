@@ -120,4 +120,20 @@ describe("chunking", () => {
     expect(chunks[0].pageStart).toBeGreaterThanOrEqual(2);
     expect(chunks.some((c) => c.text.includes("Revenue"))).toBe(true);
   });
+
+  it("step 1: packed chunks carry hierarchy fields with flat defaults", () => {
+    const pages = applyPageSignals([
+      {
+        pageNumber: 2,
+        text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
+      },
+    ]);
+    const chunks = chunkPages(pages, 2);
+    expect(chunks.length).toBeGreaterThanOrEqual(1);
+    for (const c of chunks) {
+      expect(c.kind).toBe("flat");
+      expect(c.parentId ?? null).toBeNull();
+      expect(c.sectionTitle ?? null).toBeNull();
+    }
+  });
 });

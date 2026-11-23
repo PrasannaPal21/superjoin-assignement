@@ -3,20 +3,9 @@ import { getDb } from "./client";
 export function migrateFactsAndRelations(): void {
   const db = getDb();
 
+  // chunks hierarchy columns: see migrate-chunks.ts (additive ALTERs for existing DBs)
+
   db.exec(`
-    CREATE TABLE IF NOT EXISTS chunks (
-      id TEXT PRIMARY KEY,
-      document_id TEXT NOT NULL,
-      page_start INTEGER NOT NULL,
-      page_end INTEGER NOT NULL,
-      text TEXT NOT NULL,
-      token_estimate INTEGER,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
-
     CREATE TABLE IF NOT EXISTS facts (
       id TEXT PRIMARY KEY,
       document_id TEXT NOT NULL,
