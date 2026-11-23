@@ -7,6 +7,10 @@ import {
 import { repairJsonText, parseJsonWithRepair } from "@/lib/llm/json-repair";
 import { ExtractionResultSchema } from "@/lib/llm/schemas";
 import { chunkPages } from "@/lib/pdf/chunk";
+import {
+  getOcrMinTextChars,
+  isOcrEnabled,
+} from "@/lib/config";
 
 describe("upload validation", () => {
   it("sanitizes path-like names", () => {
@@ -50,6 +54,13 @@ describe("fact schema", () => {
     });
     expect(parsed.facts).toHaveLength(1);
     expect(parsed.facts[0].factType).toBe("revenue");
+  });
+});
+
+describe("ocr config", () => {
+  it("defaults OCR on with a sensible sparse threshold", () => {
+    expect(isOcrEnabled()).toBe(true);
+    expect(getOcrMinTextChars()).toBeGreaterThan(0);
   });
 });
 

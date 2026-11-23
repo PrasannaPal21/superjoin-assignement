@@ -68,18 +68,24 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     updateDocumentStatus(documentId, "processing");
     updateJobProgress(jobId, "parsing", 0, 1);
 
+    updateJobProgress(jobId, "parsing (+OCR if needed)", 0, 1);
     const parsed = await extractPdfPages(doc.stored_path);
     updateDocumentStatus(documentId, "processing", { page_count: parsed.pageCount });
 
-    const emptyPages = parsed.pages.filter((p) => !p.text || p.text.length < 20).length;
-    if (emptyPages > parsed.pages.length * 0.8) {
+    // OCR success is normal — do not journal. Only fail when text is still unusable.
+    if (parsed.emptyPageCount > parsed.pages.length * 0.8) {
       insertFailure({
         id: randomUUID(),
         document_id: documentId,
         stage: "parse",
-        summary: "Most pages had little or no extractable text",
-        detail: `${emptyPages}/${parsed.pageCount} pages looked empty. Likely scanned/image PDF without OCR.`,
-        suggestion: suggestionForError("parse", "Most pages had little or no extractable text"),
+        summary: "Most pages still had little text after local OCR",
+        detail: `${parsed.emptyPageCount}/${parsed.pages.length} pages below the text threshold after pdf.js${
+          parsed.ocrPageCount ? ` + Tesseract (${parsed.ocrPageCount} OCR pages)` : ""
+        }.`,
+        suggestion: suggestionForError(
+          "parse",
+          "Most pages still had little text after local OCR",
+        ),
       });
     }
 
@@ -90,7 +96,9 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
         document_id: documentId,
         stage: "parse",
         summary: "No text chunks produced",
-        detail: "Parser returned no usable page text.",
+        detail: parsed.ocrPageCount
+          ? `pdf.js + local OCR (${parsed.ocrPageCount} pages) still produced no chunkable text.`
+          : "Parser returned no usable page text (OCR disabled or all pages empty).",
         suggestion: suggestionForError("parse", "No text chunks produced"),
       });
       updateDocumentStatus(documentId, "failed", {

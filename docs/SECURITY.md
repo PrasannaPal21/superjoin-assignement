@@ -17,7 +17,7 @@ Hardening focuses on upload abuse, path safety, secret handling, and LLM / RAG p
 - Secrets only via env (`GROQ_API_KEY`, `EMBEDDING_API_KEY`, …). `.env` is gitignored; `.env.example` is tracked.
 - Zod validation on LLM JSON (extract, classify, rerank, Ask) before persistence.
 - UI renders quotes and Ask citations as text nodes (no HTML injection from PDF content).
-- `isEvalSupported: false` for pdf.js.
+- Local OCR (Tesseract) runs in-process on page rasters — document bytes stay on disk; no third-party OCR API.
 
 ## Prompt injection (RAG-specific)
 

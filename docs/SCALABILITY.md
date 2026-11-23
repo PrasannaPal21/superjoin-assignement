@@ -26,7 +26,7 @@
 | Files | S3-compatible object storage |
 | Workers | Separate worker service(s); horizontal replicas |
 | Rerank | Optional cross-encoder behind the same `rerank.ts` interface |
-| OCR | Optional Tesseract/cloud OCR lane for image PDFs |
+| OCR | Local Tesseract is on by default; raise `OCR_MAX_PAGES` / concurrency or swap to PaddleOCR/Docling for harder tables |
 | Tenancy | Auth + `tenant_id` on documents/facts/embeddings |
 
 The app already separates **API**, **queue/progress**, and **pipeline stages** (chunk → extract → embed → hybrid recall → rerank → classify / Ask) so those swaps stay localized.

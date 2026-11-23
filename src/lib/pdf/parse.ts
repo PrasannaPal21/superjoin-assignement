@@ -1,10 +1,32 @@
 import fs from "fs";
-import { getMaxPages } from "@/lib/config";
+import {
+  getMaxPages,
+  getOcrConcurrency,
+  getOcrMaxPages,
+  getOcrMinTextChars,
+  getOcrRenderScale,
+  isOcrEnabled,
+} from "@/lib/config";
+import { ocrImageBuffer } from "@/lib/pdf/ocr";
+import { renderPdfPageToPng } from "@/lib/pdf/render-page";
+import { mapPool } from "@/lib/pipeline/pool";
 import type { PdfPage, PdfParseResult } from "./types";
 
+function pageTextFromContent(content: { items: unknown[] }): string {
+  const strings: string[] = [];
+  for (const item of content.items) {
+    if (item && typeof item === "object" && "str" in item) {
+      const str = (item as { str?: string }).str;
+      if (str) strings.push(str);
+    }
+  }
+  return strings.join(" ").replace(/\s+/g, " ").trim();
+}
+
 /**
- * Extract plain text per page. Uses pdf.js legacy build (Node-friendly).
- * Scanned image-only pages may yield empty strings — that's expected without OCR.
+ * Extract plain text per page via pdf.js.
+ * Sparse / image-only pages are OCR'd locally with Tesseract (no LLM tokens)
+ * when OCR_ENABLED is on (default).
  */
 export async function extractPdfPages(filePath: string): Promise<PdfParseResult> {
   if (!fs.existsSync(filePath)) {
@@ -28,7 +50,6 @@ export async function extractPdfPages(filePath: string): Promise<PdfParseResult>
       data,
       useSystemFonts: true,
       disableFontFace: true,
-      // password-protected docs should fail clearly
       password: "",
     });
     pdf = await loadingTask.promise;
@@ -47,26 +68,72 @@ export async function extractPdfPages(filePath: string): Promise<PdfParseResult>
   }
 
   const limit = Math.min(pageCount, maxPages);
+  const minChars = getOcrMinTextChars();
   const pages: PdfPage[] = [];
 
   for (let i = 1; i <= limit; i++) {
     try {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const strings: string[] = [];
-      for (const item of content.items) {
-        if (item && typeof item === "object" && "str" in item) {
-          const str = (item as { str?: string }).str;
-          if (str) strings.push(str);
-        }
-      }
-      const text = strings.join(" ").replace(/\s+/g, " ").trim();
-      pages.push({ pageNumber: i, text });
+      const text = pageTextFromContent(content);
+      pages.push({
+        pageNumber: i,
+        text,
+        source: text.length >= minChars ? "text" : "empty",
+      });
     } catch {
-      // Keep going — one bad page shouldn't kill the whole document
-      pages.push({ pageNumber: i, text: "" });
+      pages.push({ pageNumber: i, text: "", source: "empty" });
     }
   }
 
-  return { pageCount, pages };
+  const sparseIndexes = pages
+    .map((p, idx) => ({ p, idx }))
+    .filter(({ p }) => (p.text?.length ?? 0) < minChars)
+    .map(({ idx }) => idx);
+
+  let ocrPageCount = 0;
+
+  if (isOcrEnabled() && sparseIndexes.length > 0) {
+    const toOcr = sparseIndexes.slice(0, getOcrMaxPages());
+    const scale = getOcrRenderScale();
+
+    const ocrHits = await mapPool(toOcr, getOcrConcurrency(), async (pageIndex) => {
+      const pageNumber = pages[pageIndex].pageNumber;
+      try {
+        const page = await pdf.getPage(pageNumber);
+        const png = await renderPdfPageToPng(
+          page as unknown as Parameters<typeof renderPdfPageToPng>[0],
+          scale,
+        );
+        const ocrText = await ocrImageBuffer(png);
+        if (ocrText.length >= minChars) {
+          pages[pageIndex] = {
+            pageNumber,
+            text: ocrText,
+            source: "ocr",
+          };
+          return true;
+        }
+        if (ocrText.length > (pages[pageIndex].text?.length ?? 0)) {
+          // Keep partial OCR if it beats an empty text layer.
+          pages[pageIndex] = {
+            pageNumber,
+            text: ocrText,
+            source: ocrText ? "ocr" : "empty",
+          };
+          return Boolean(ocrText);
+        }
+      } catch {
+        // Leave the page as-is; worker decides whether the doc is usable.
+      }
+      return false;
+    });
+    ocrPageCount = ocrHits.filter(Boolean).length;
+  }
+
+  const emptyPageCount = pages.filter(
+    (p) => !p.text || p.text.length < minChars,
+  ).length;
+
+  return { pageCount, pages, ocrPageCount, emptyPageCount };
 }

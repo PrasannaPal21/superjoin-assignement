@@ -115,8 +115,11 @@ flowchart TD
   V --> H[SHA256_dedupe]
   H --> P[pdfjs_per_page_text]
   P --> S{Sparse_text?}
-  S -->|yes| Fail[Failure_journal_OCR_follow_on]
-  S -->|no| Sig[Score_page_signal]
+  S -->|yes| Ocr[Local_Tesseract_OCR]
+  Ocr --> S2{Text_usable?}
+  S2 -->|no| Fail[Failure_journal]
+  S2 -->|yes| Sig[Score_page_signal]
+  S -->|no| Sig
   Sig --> Seg[Detect_sections_and_tables]
   Seg --> Parent[Parent_chunk_section_or_table]
   Parent --> Child[Child_chunk_KPI_span_or_row_group]
@@ -139,7 +142,8 @@ flowchart TD
 | Stage | Input | Output | Notes |
 |-------|--------|--------|-------|
 | Validate / dedupe | File bytes | Stored doc or skip | Content-hash idempotency |
-| Parse | PDF | Page texts | Image-heavy → journal |
+| Parse | PDF | Page texts | pdf.js text layer first |
+| Local OCR | Sparse pages | OCR text | Tesseract.js + canvas; no LLM tokens; journal only if still empty |
 | Signal prior | Pages | Priority set | Prefer KPI-dense pages; drop TOC |
 | Structure segment | Pages | Sections / tables | Boundaries from layout, not token windows |
 | Parent–child | Sections | Parent + children | Extract on child; parent as context |

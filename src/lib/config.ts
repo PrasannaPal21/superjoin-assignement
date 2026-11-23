@@ -13,6 +13,36 @@ export function getMaxPages(): number {
   return Math.max(1, Number(process.env.MAX_PAGES || "500"));
 }
 
+/** Run local Tesseract when pdf.js text is sparse. Default on. */
+export function isOcrEnabled(): boolean {
+  const raw = process.env.OCR_ENABLED?.trim().toLowerCase();
+  if (raw === "0" || raw === "false" || raw === "off" || raw === "no") return false;
+  return true;
+}
+
+/** Pages with fewer than this many chars are OCR candidates. */
+export function getOcrMinTextChars(): number {
+  return Math.max(0, Number(process.env.OCR_MIN_TEXT_CHARS || "40"));
+}
+
+/** pdf.js render scale for OCR (higher = sharper, slower). */
+export function getOcrRenderScale(): number {
+  return Math.min(3, Math.max(1, Number(process.env.OCR_RENDER_SCALE || "2")));
+}
+
+/** Cap how many pages we OCR per document (cost/latency guard). */
+export function getOcrMaxPages(): number {
+  return Math.max(1, Number(process.env.OCR_MAX_PAGES || "80"));
+}
+
+export function getOcrLang(): string {
+  return process.env.OCR_LANG?.trim() || "eng";
+}
+
+export function getOcrConcurrency(): number {
+  return Math.max(1, Number(process.env.OCR_CONCURRENCY || "1"));
+}
+
 /** Soft page target per chunk; packing also respects char budget. */
 export function getChunkPages(): number {
   return Math.max(1, Number(process.env.CHUNK_PAGES || "8"));

@@ -90,6 +90,12 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `EMBEDDING_MODEL` | Embedding model id | set in `.env.example` |
 | `MAX_UPLOAD_MB` | Upload size cap | `40` |
 | `MAX_PAGES` | Pages parsed per PDF | `500` |
+| `OCR_ENABLED` | Local Tesseract on sparse pages | `true` |
+| `OCR_MIN_TEXT_CHARS` | Below this → OCR candidate | `40` |
+| `OCR_RENDER_SCALE` | pdf.js raster scale for OCR | `2` |
+| `OCR_MAX_PAGES` | Max pages OCR’d per PDF | `80` |
+| `OCR_LANG` | Tesseract language | `eng` |
+| `OCR_CONCURRENCY` | Parallel OCR pages | `1` |
 | `CHUNK_PAGES` / `CHUNK_CHAR_BUDGET` | Parent pack soft limits | `8` / `12000` |
 | `MAX_EXTRACT_CHUNKS` | Hard cap extract calls / PDF | `16` |
 | `MAX_MATCH_PAIRS` | Cap after RRF / before rerank budget | `16` |
@@ -141,7 +147,7 @@ More detail: [RAG architecture](docs/RAG_ARCHITECTURE.md) · [ARCHITECTURE](docs
 
 ### Trade-offs
 
-- Best on text-layer PDFs; scanned PDFs need an OCR lane (optional follow-on).
+- Scanned pages use **local Tesseract OCR** (no Groq tokens); complex table scans may still be noisy vs text-layer PDFs.
 - LLM reranker is flexible and dependency-light; a dedicated cross-encoder can replace it behind the same interface.
 - In-process workers are simple for the assignment; multi-instance production should externalize the queue ([SCALABILITY](docs/SCALABILITY.md)).
 
@@ -154,9 +160,9 @@ More detail: [RAG architecture](docs/RAG_ARCHITECTURE.md) · [ARCHITECTURE](docs
 
 ## Limitations and Next Steps
 
-**Constraints:** image-only PDFs without OCR; messy table reading order; co-reference across distant pages; embedding/Groq rate limits.
+**Constraints:** OCR quality on dense finance tables; messy table reading order; co-reference across distant pages; embedding/Groq rate limits.
 
-**Follow-ons:** OCR lane, cross-encoder rerank swap, Postgres + pgvector + Redis workers, exportable audit packs, stronger golden eval coverage.
+**Follow-ons:** stronger table OCR (PaddleOCR/Docling), cross-encoder rerank swap, Postgres + pgvector + Redis workers, exportable audit packs, stronger golden eval coverage.
 
 ## Additional Notes
 

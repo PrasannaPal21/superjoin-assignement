@@ -44,7 +44,7 @@ Local default: SQLite with a vector extension. Schema maps cleanly to Postgres +
 ### Index-time
 
 1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 dedupe.
-2. **Parse** — pdf.js per-page text. Sparse/image pages → failure journal (OCR optional follow-on).
+2. **Parse + local OCR** — pdf.js per-page text; sparse/image pages → rasterize → **Tesseract.js** (no LLM tokens). Journal only if text is still unusable after OCR.
 3. **Signal prior** — prefer KPI-dense pages; deprioritize TOC/glossary (budget only, not cut boundaries).
 4. **Structure + parent/child** — sections/tables as parents; KPI spans / row groups as children.
 5. **Extract** — Groq JSON on children with parent context (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk.

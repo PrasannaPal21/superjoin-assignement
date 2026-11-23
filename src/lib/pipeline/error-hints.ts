@@ -12,7 +12,7 @@ export function suggestionForError(stage: string, message: string): string {
     return "Remove PDF password protection before upload.";
   }
   if (stage === "parse") {
-    return "Prefer text-based PDFs, or enable an OCR lane for scanned pages.";
+    return "Check OCR_ENABLED=true, raise OCR_MAX_PAGES / OCR_RENDER_SCALE for scans, or supply a clearer text-layer PDF.";
   }
   if (stage === "match") {
     return "Extracted facts were kept. Re-queue matching after the model endpoint is healthy.";
