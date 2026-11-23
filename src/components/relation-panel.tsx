@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { prettyType, shortDocName } from "@/lib/format";
-import { CheckCircle2, GitCompareArrows, Scale, Shuffle, TriangleAlert } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  GitCompareArrows,
+  Scale,
+  Shuffle,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 
 type Side = {
   claim: string;
@@ -23,9 +31,12 @@ type Relation = {
   rationale: string | null;
   contextTags: string[];
   confidence: number;
+  reviewStatus?: string;
   a: Side;
   b: Side;
 };
+
+type FilterMode = "" | "corroborates" | "contradicts" | "reconciled" | "needs_review";
 
 const META: Record<
   string,
@@ -62,24 +73,48 @@ function metaLine(s: Side): string {
 
 export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [relations, setRelations] = useState<Relation[]>([]);
-  const [counts, setCounts] = useState({ corroborates: 0, contradicts: 0, reconciled: 0 });
-  const [filter, setFilter] = useState("");
+  const [counts, setCounts] = useState({
+    corroborates: 0,
+    contradicts: 0,
+    reconciled: 0,
+    needsReview: 0,
+  });
+  const [filter, setFilter] = useState<FilterMode>("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<"rematch" | "reprocess" | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const params = filter ? `?type=${filter}` : "";
-    void fetch(`/api/relations${params}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setRelations(data.relations || []);
-        if (!filter && data.counts) setCounts(data.counts);
-      })
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, [filter, refreshKey]);
+    const params =
+      filter === "needs_review"
+        ? "?reviewStatus=needs_review"
+        : filter
+          ? `?type=${filter}`
+          : "";
+    try {
+      const res = await fetch(`/api/relations${params}`);
+      const data = await res.json();
+      setRelations(data.relations || []);
+      if (data.counts) {
+        setCounts({
+          corroborates: data.counts.corroborates ?? 0,
+          contradicts: data.counts.contradicts ?? 0,
+          reconciled: data.counts.reconciled ?? 0,
+          needsReview: data.counts.needsReview ?? 0,
+        });
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
+
+  useEffect(() => {
+    void load();
+  }, [load, refreshKey]);
 
   const total = counts.corroborates + counts.contradicts + counts.reconciled;
 
@@ -93,7 +128,6 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
       setHint(data.message || "Done.");
-      // Parent polls via refreshKey when jobs are busy; nudge once now.
       window.dispatchEvent(new Event("fkl-refresh"));
     } catch (err) {
       setHint(err instanceof Error ? err.message : "Action failed");
@@ -102,9 +136,33 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
     }
   }
 
+  async function reviewRelation(id: string, decision: "confirmed" | "rejected") {
+    setReviewingId(id);
+    setHint(null);
+    try {
+      const res = await fetch(`/api/relations/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Review failed");
+      setHint(
+        decision === "confirmed"
+          ? "Conflict confirmed."
+          : "Conflict rejected (dismissed from review).",
+      );
+      await load();
+      window.dispatchEvent(new Event("fkl-refresh"));
+    } catch (err) {
+      setHint(err instanceof Error ? err.message : "Review failed");
+    } finally {
+      setReviewingId(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
-      {/* Summary + filter chips */}
       <div className="flex flex-wrap items-center gap-2 pb-4 pt-1">
         <div className="mr-2 flex items-center gap-1.5 text-sm text-muted-foreground">
           <GitCompareArrows className="size-4" />
@@ -116,6 +174,7 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             ["corroborates", "Agrees", counts.corroborates, <CheckCircle2 key="i-c" className="size-3.5" />],
             ["contradicts", "Conflicts", counts.contradicts, <TriangleAlert key="i-x" className="size-3.5" />],
             ["reconciled", "Different context", counts.reconciled, <Scale key="i-r" className="size-3.5" />],
+            ["needs_review", "Needs review", counts.needsReview, <TriangleAlert key="i-n" className="size-3.5" />],
           ] as const
         ).map(([id, label, n, icon]) => (
           <button
@@ -127,6 +186,9 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
               filter === id
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+              id === "needs_review" && n > 0 && filter !== id
+                ? "border-warn/40 text-warn"
+                : "",
             )}
           >
             {icon}
@@ -172,15 +234,24 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
         <div className="rounded-xl border border-dashed bg-card px-6 py-14 text-center">
           <GitCompareArrows className="mx-auto mb-3 size-8 text-muted-foreground/50" />
           <p className="text-sm font-medium text-foreground">
-            {filter
-              ? "No comparisons of this type yet."
-              : "No cross-document comparisons yet."}
+            {filter === "needs_review"
+              ? "No conflicts waiting for review."
+              : filter
+                ? "No comparisons of this type yet."
+                : "No cross-document comparisons yet."}
           </p>
           <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-            Documents can show Ready even when Groq rate-limited most chunks — then facts don’t
-            overlap across PDFs. Use <span className="font-medium text-foreground">Re-extract all PDFs</span>{" "}
-            (wait a minute between big runs), or{" "}
-            <span className="font-medium text-foreground">Rebuild comparisons</span> if Facts already look rich.
+            {filter === "needs_review"
+              ? "Low-confidence conflicts appear here for confirm/reject before they count as settled."
+              : (
+                <>
+                  Documents can show Ready even when Groq rate-limited most chunks — then facts don’t
+                  overlap across PDFs. Use{" "}
+                  <span className="font-medium text-foreground">Re-extract all PDFs</span>{" "}
+                  (wait a minute between big runs), or{" "}
+                  <span className="font-medium text-foreground">Rebuild comparisons</span> if Facts already look rich.
+                </>
+              )}
           </p>
         </div>
       )}
@@ -193,12 +264,17 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             chip: "bg-muted text-foreground",
             icon: <Shuffle className="size-3.5" />,
           };
+          const needsReview = r.reviewStatus === "needs_review";
+          const reviewed =
+            r.reviewStatus === "confirmed" || r.reviewStatus === "rejected";
           return (
             <li
               key={r.id}
-              className="card-lift animate-rise overflow-hidden rounded-xl border border-border bg-card"
+              className={cn(
+                "card-lift animate-rise overflow-hidden rounded-xl border bg-card",
+                needsReview ? "border-warn/50" : "border-border",
+              )}
             >
-              {/* Header: verdict + rationale */}
               <div className="flex flex-wrap items-center gap-2 border-b border-border/70 bg-muted/30 px-4 py-2.5">
                 <span
                   className={cn(
@@ -209,6 +285,21 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   {meta.icon}
                   {meta.title}
                 </span>
+                {needsReview && (
+                  <span className="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-semibold text-warn">
+                    Needs review
+                  </span>
+                )}
+                {r.reviewStatus === "confirmed" && (
+                  <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-semibold text-ok">
+                    Confirmed
+                  </span>
+                )}
+                {r.reviewStatus === "rejected" && (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                    Rejected
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">{meta.hint}</span>
                 <span className="ml-auto text-[11px] tabular text-muted-foreground">
                   {(r.confidence * 100).toFixed(0)}% confidence
@@ -222,7 +313,6 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   </p>
                 )}
 
-                {/* A vs B grid */}
                 <div className="grid gap-3 md:grid-cols-2">
                   <SideCard side={r.a} label="A" />
                   <SideCard side={r.b} label="B" />
@@ -239,6 +329,32 @@ export function RelationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                         {t}
                       </span>
                     ))}
+                  </div>
+                )}
+
+                {needsReview && !reviewed && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+                    <span className="mr-auto text-xs text-muted-foreground">
+                      Low-confidence conflict — confirm or dismiss.
+                    </span>
+                    <button
+                      type="button"
+                      disabled={reviewingId === r.id}
+                      onClick={() => void reviewRelation(r.id, "confirmed")}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-ok px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Check className="size-3.5" strokeWidth={3} />
+                      {reviewingId === r.id ? "Saving…" : "Confirm conflict"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={reviewingId === r.id}
+                      onClick={() => void reviewRelation(r.id, "rejected")}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    >
+                      <X className="size-3.5" />
+                      Reject
+                    </button>
                   </div>
                 )}
               </div>

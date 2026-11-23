@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { timeAgo } from "@/lib/format";
-import { Check, CircleDashed, FlaskConical, NotebookText, Wrench } from "lucide-react";
+import { shortDocName, timeAgo } from "@/lib/format";
+import {
+  Check,
+  CircleDashed,
+  FlaskConical,
+  NotebookText,
+  TriangleAlert,
+  Wrench,
+  X,
+} from "lucide-react";
 
 type Failure = {
   id: string;
@@ -21,21 +29,38 @@ type Cases = {
   failure: unknown;
 };
 
+type ReviewItem = {
+  id: string;
+  rationale: string | null;
+  confidence: number;
+  a: { claim: string; documentName: string | null; rawValue: string | null; unit: string | null };
+  b: { claim: string; documentName: string | null; rawValue: string | null; unit: string | null };
+};
+
 export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [failures, setFailures] = useState<Failure[]>([]);
   const [cases, setCases] = useState<Cases | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [f, c, rel] = await Promise.all([
+        fetch("/api/failures").then((r) => r.json()),
+        fetch("/api/demo-cases").then((r) => r.json()),
+        fetch("/api/relations?reviewStatus=needs_review").then((r) => r.json()),
+      ]);
+      setFailures(f.failures || []);
+      setCases(c.cases || null);
+      setReviewQueue(rel.relations || []);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
-    void Promise.all([
-      fetch("/api/failures").then((r) => r.json()),
-      fetch("/api/demo-cases").then((r) => r.json()),
-    ])
-      .then(([f, c]) => {
-        setFailures(f.failures || []);
-        setCases(c.cases || null);
-      })
-      .catch(() => undefined);
-  }, [refreshKey]);
+    void load();
+  }, [load, refreshKey]);
 
   const checks = [
     { label: "Agrees comparison", desc: "Two documents confirming the same fact", ok: Boolean(cases?.corroborates) },
@@ -45,9 +70,29 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   ];
   const passed = checks.filter((c) => c.ok).length;
 
+  async function reviewRelation(id: string, decision: "confirmed" | "rejected") {
+    setReviewingId(id);
+    try {
+      const res = await fetch(`/api/relations/${id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Review failed");
+      }
+      await load();
+      window.dispatchEvent(new Event("fkl-refresh"));
+    } catch {
+      /* keep queue; Compare tab shows errors via hint */
+    } finally {
+      setReviewingId(null);
+    }
+  }
+
   return (
     <div className="mx-auto grid max-w-4xl gap-4 pt-1 lg:grid-cols-2">
-      {/* Demo readiness */}
       <section className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
@@ -91,7 +136,63 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
         </p>
       </section>
 
-      {/* Failure journal */}
+      <section className="overflow-hidden rounded-xl border border-border bg-card lg:row-span-2">
+        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <TriangleAlert className="size-4 text-warn" />
+            HITL review queue
+          </h2>
+          <span className="text-[11px] tabular text-muted-foreground">
+            {reviewQueue.length} pending
+          </span>
+        </div>
+        <ul className="max-h-[520px] divide-y divide-border/70 overflow-auto">
+          {reviewQueue.length === 0 && (
+            <li className="px-4 py-12 text-center">
+              <Check className="mx-auto mb-2 size-6 text-ok/60" />
+              <p className="text-sm font-medium text-foreground">Queue empty</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Low-confidence conflicts land here for confirm/reject.
+              </p>
+            </li>
+          )}
+          {reviewQueue.map((r) => (
+            <li key={r.id} className="px-4 py-3">
+              <p className="text-sm font-medium leading-snug text-foreground">
+                {r.rationale || "Low-confidence conflict"}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {shortDocName(r.a.documentName)} ({[r.a.rawValue, r.a.unit].filter(Boolean).join(" ") || "—"})
+                {" vs "}
+                {shortDocName(r.b.documentName)} ({[r.b.rawValue, r.b.unit].filter(Boolean).join(" ") || "—"})
+                {" · "}
+                {(r.confidence * 100).toFixed(0)}%
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={reviewingId === r.id}
+                  onClick={() => void reviewRelation(r.id, "confirmed")}
+                  className="inline-flex items-center gap-1 rounded-full bg-ok px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+                >
+                  <Check className="size-3" strokeWidth={3} />
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  disabled={reviewingId === r.id}
+                  onClick={() => void reviewRelation(r.id, "rejected")}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  <X className="size-3" />
+                  Reject
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
           <h2 className="flex items-center gap-2 text-sm font-semibold">

@@ -243,14 +243,24 @@ export function countRelationsByType(relationType: string): number {
   return row.n;
 }
 
+export function getRelation(id: string): RelationRow | null {
+  ensureDb();
+  return (
+    (getDb()
+      .prepare(`SELECT * FROM relations WHERE id = ?`)
+      .get(id) as RelationRow | undefined) ?? null
+  );
+}
+
 export function updateRelationReviewStatus(
   id: string,
   reviewStatus: ReviewStatus,
-): void {
+): boolean {
   ensureDb();
-  getDb()
+  const result = getDb()
     .prepare(`UPDATE relations SET review_status = ? WHERE id = ?`)
     .run(reviewStatus, id);
+  return Number(result.changes ?? 0) > 0;
 }
 
 export function listFailures(): FailureRow[] {

@@ -5,9 +5,11 @@ import { ensureDb } from "@/lib/db";
 import { closeDb } from "@/lib/db/client";
 import { insertDocument } from "@/lib/db/documents";
 import {
+  getRelation,
   insertFact,
   insertRelation,
   listRelationsByReviewStatus,
+  updateRelationReviewStatus,
 } from "@/lib/db/facts";
 import { decideReviewStatus } from "@/lib/pipeline/review-status";
 
@@ -115,5 +117,10 @@ describe("review_status HITL gate (stage 3)", () => {
     expect(needs.find((r) => r.id === weakId)?.review_status).toBe(
       "needs_review",
     );
+
+    expect(updateRelationReviewStatus(weakId, "confirmed")).toBe(true);
+    expect(getRelation(weakId)?.review_status).toBe("confirmed");
+    expect(updateRelationReviewStatus(weakId, "rejected")).toBe(true);
+    expect(getRelation(weakId)?.review_status).toBe("rejected");
   });
 });

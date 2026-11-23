@@ -72,13 +72,16 @@ Response includes:
 
 ## `POST /api/relations/:id/review`
 
-HITL confirm/reject (stage C5 — not shipped yet). Planned body:
+HITL confirm/reject for conflict relations.
 
 ```json
 { "decision": "confirmed" }
 ```
 
 or `{ "decision": "rejected" }`.
+
+**200:** `{ ok, id, reviewStatus, relationType, confidence }`  
+**400** if decision invalid or relation is not a conflict; **404** if missing.
 
 ## `POST /api/ask`
 

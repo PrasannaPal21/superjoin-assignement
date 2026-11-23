@@ -498,10 +498,9 @@ flowchart LR
 | 9 | Evidence Ask prep | done | [`hybrid-ask.ts`](../src/lib/embeddings/hybrid-ask.ts) |
 | 10 | Fixtures + smoke | done | [`fixtures.ts`](../src/lib/embeddings/fixtures.ts), `npm run smoke:hybrid` |
 
-**Not in this pipeline (next phases):** Ask generation, HITL confirm/reject UI (C5), GraphRAG.  
+**Not in this pipeline (next phases):** Ask generation, GraphRAG.  
 **Rerank:** cascade CE + rare LLM — implemented.  
-**HITL persist (C3):** `review_status` on relations (`needs_review` for weak contradicts).  
-**HITL config (C4):** `CONFLICT_REVIEW_THRESHOLD` via `getConflictReviewThreshold()`; health + relations API expose threshold / `needsReview` counts.
+**HITL (C3–C5):** `review_status` persist + threshold config + Compare/Issues confirm/reject (`POST /api/relations/:id/review`).
 
 Smoke:
 
