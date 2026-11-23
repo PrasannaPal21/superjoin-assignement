@@ -268,7 +268,10 @@ flowchart TD
 ```
 
 **RRF:** for each candidate id,  
-`score = Σ 1 / (k + rank_in_list_i)` across match_key / BM25 / dense lists, then sort.
+`score = Σ 1 / (k + rank_in_list_i)` across match_key / BM25 / dense lists, then sort  
+([`rrf.ts`](../src/lib/embeddings/rrf.ts), default `k=60` via `RRF_K`).
+
+**Compare wiring:** [`hybridRetrieveForFact`](../src/lib/embeddings/hybrid.ts) → [`findCandidatePairs`](../src/lib/pipeline/match-candidates.ts) → existing heuristic/LLM classify.
 
 **Metadata:** prefer same entity family; do **not** hard-drop different periods (needed for `reconciled`). Period stays out of `match_key` by design.
 
@@ -428,6 +431,8 @@ flowchart LR
     indexDoc[index-document.ts]
     sparse[sparse.ts]
     dense[dense.ts]
+    rrf[rrf.ts]
+    hybrid[hybrid.ts]
   end
   subgraph dbemb [src/lib/db]
     migrateEmb[migrate-embeddings.ts]
@@ -448,9 +453,10 @@ flowchart LR
   extract --> sparse
   sparse --> sparseCrud
   migrateSparse --> sparseCrud
-  indexDoc --> match
-  sparse --> match
-  dense --> match
+  indexDoc --> hybrid
+  sparse --> hybrid
+  dense --> hybrid
+  hybrid --> rrf --> match
   match --> candidates --> rerank --> classify
   classify --> llm
 ```

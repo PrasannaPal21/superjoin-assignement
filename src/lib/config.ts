@@ -75,6 +75,29 @@ export function getMaxMatchPairs(): number {
   return Math.max(4, Number(process.env.MAX_MATCH_PAIRS || "16"));
 }
 
+/** BM25 candidates per new fact before RRF. */
+export function getSparseTopK(): number {
+  return Math.max(1, Number(process.env.SPARSE_TOP_K || "20"));
+}
+
+/** Dense cosine candidates per new fact before RRF. */
+export function getDenseTopK(): number {
+  return Math.max(1, Number(process.env.DENSE_TOP_K || "20"));
+}
+
+/** Fused hybrid candidates kept per fact (feeds match / rerank). */
+export function getRrfTopN(): number {
+  return Math.max(
+    1,
+    Number(process.env.RRF_TOP_N || process.env.RERANK_TOP_N || "30"),
+  );
+}
+
+/** RRF constant k (Cormack et al.; typically 60). */
+export function getRrfK(): number {
+  return Math.max(1, Number(process.env.RRF_K || "60"));
+}
+
 export function getMatchBatchSize(): number {
   return Math.max(2, Number(process.env.MATCH_BATCH_SIZE || "6"));
 }

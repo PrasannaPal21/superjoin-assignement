@@ -126,6 +126,27 @@ export function listFacts(documentId?: string): FactRow[] {
     .all() as FactRow[];
 }
 
+export function getFact(id: string): FactRow | null {
+  ensureDb();
+  return (
+    (getDb()
+      .prepare(`SELECT * FROM facts WHERE id = ?`)
+      .get(id) as FactRow | undefined) ?? null
+  );
+}
+
+export function getFactsByIds(ids: string[]): FactRow[] {
+  if (ids.length === 0) return [];
+  ensureDb();
+  const out: FactRow[] = [];
+  const stmt = getDb().prepare(`SELECT * FROM facts WHERE id = ?`);
+  for (const id of ids) {
+    const row = stmt.get(id) as FactRow | undefined;
+    if (row) out.push(row);
+  }
+  return out;
+}
+
 export function listEvidenceForFact(factId: string): EvidenceRow[] {
   ensureDb();
   return getDb()

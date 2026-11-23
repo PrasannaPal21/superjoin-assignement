@@ -102,6 +102,8 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `CHILD_MIN_TOKENS` / `CHILD_MAX_TOKENS` | Narrative child size | `200` / `800` |
 | `CHILD_TABLE_ROWS` | Rows per table child (header repeated) | `5` |
 | `MAX_EXTRACT_CHUNKS` | Hard cap extract calls / PDF | `16` |
+| `SPARSE_TOP_K` / `DENSE_TOP_K` | BM25 / dense lists before RRF | `20` / `20` |
+| `RRF_K` / `RRF_TOP_N` | RRF constant / fused keep | `60` / `30` |
 | `MAX_MATCH_PAIRS` | Cap after RRF / before rerank budget | `16` |
 | `RERANK_TOP_N` / `RERANK_TOP_M` | Rerank in → out | `30` / `12` |
 | `RERANK_MIN_SCORE` | Drop weak pairs / passages | `0.35` |
