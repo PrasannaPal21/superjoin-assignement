@@ -12,10 +12,11 @@ import { insertFailure } from "@/lib/db/facts";
 import { chunkPages } from "@/lib/pdf/chunk";
 import { extractPdfPages } from "@/lib/pdf/parse";
 import { applyPageSignals } from "@/lib/pdf/signal";
+import { summarizeSections } from "@/lib/pdf/structure";
 import {
-  detectSectionsFromDocument,
-  summarizeSections,
-} from "@/lib/pdf/structure";
+  detectBlocksFromDocument,
+  summarizeBlocks,
+} from "@/lib/pdf/tables";
 import {
   extractAndStoreChunkFacts,
   persistChunk,
@@ -80,10 +81,15 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     updateJobProgress(jobId, "scoring page signals", 0, 1);
     applyPageSignals(parsed.pages);
 
-    // Step 2: section detection for inspect/progress (packing still flat until later steps).
-    updateJobProgress(jobId, "detecting sections", 0, 1);
-    const sections = detectSectionsFromDocument(parsed.pages);
-    updateJobProgress(jobId, summarizeSections(sections), 0, 1);
+    // Steps 2–3: sections + table/narrative blocks (packing still flat until later steps).
+    updateJobProgress(jobId, "detecting sections + table blocks", 0, 1);
+    const { sections, blocks } = detectBlocksFromDocument(parsed.pages);
+    updateJobProgress(
+      jobId,
+      `${summarizeSections(sections)}; ${summarizeBlocks(blocks)}`,
+      0,
+      1,
+    );
 
     // OCR success is normal — do not journal. Only fail when text is still unusable.
     if (parsed.emptyPageCount > parsed.pages.length * 0.8) {

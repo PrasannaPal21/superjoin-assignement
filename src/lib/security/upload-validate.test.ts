@@ -19,6 +19,11 @@ import {
   linesFromPageText,
 } from "@/lib/pdf/structure";
 import {
+  detectBlocksFromSections,
+  isTableLine,
+  tableLineScore,
+} from "@/lib/pdf/tables";
+import {
   getOcrMinTextChars,
   isOcrEnabled,
 } from "@/lib/config";
@@ -151,6 +156,43 @@ describe("structure detection (step 2)", () => {
 
   it("linesFromPageText prefers embedded newlines", () => {
     expect(linesFromPageText("A\nB\nC")).toEqual(["A", "B", "C"]);
+  });
+});
+
+describe("table block detection (step 3)", () => {
+  it("scores numeric table rows higher than prose", () => {
+    const prose =
+      "We continue to invest in capacity and technology across our network over the long term.";
+    const row =
+      "Revenue from operations  4,815.04  3,814.23  2,901.11";
+    const header = "Particulars  As at March 31, 2024  As at March 31, 2023";
+    expect(tableLineScore(row)).toBeGreaterThan(tableLineScore(prose));
+    expect(isTableLine(row)).toBe(true);
+    expect(isTableLine(header)).toBe(true);
+    expect(isTableLine(prose)).toBe(false);
+  });
+
+  it("splits a section into narrative and table blocks", () => {
+    const sections = detectSections([
+      {
+        pageNumber: 2,
+        text: [
+          "Financial Highlights",
+          "The following discussion should be read with our financials.",
+          "Particulars  FY23  FY24",
+          "Revenue from operations  3,000.00  4,815.04",
+          "EBITDA  250.50  312.00",
+          "Management believes margins will remain resilient.",
+        ].join("\n"),
+        signalScore: 5,
+      },
+    ]);
+    const blocks = detectBlocksFromSections(sections);
+    expect(blocks.some((b) => b.kind === "table")).toBe(true);
+    expect(blocks.some((b) => b.kind === "narrative")).toBe(true);
+    const table = blocks.find((b) => b.kind === "table");
+    expect(table?.text).toMatch(/Revenue from operations/);
+    expect(table?.text).toMatch(/EBITDA/);
   });
 });
 
