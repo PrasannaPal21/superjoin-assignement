@@ -499,15 +499,26 @@ flowchart LR
 | 10 | Fixtures + smoke | done | [`fixtures.ts`](../src/lib/embeddings/fixtures.ts), `npm run smoke:hybrid` |
 
 **Not in this pipeline (next phases):** Ask generation, GraphRAG.  
-**Rerank:** cascade CE + rare LLM — implemented.  
-**HITL (C3–C5):** `review_status` persist + threshold config + Compare/Issues confirm/reject (`POST /api/relations/:id/review`).
+**Rerank:** cascade CE + rare LLM — implemented.
+
+### Classify / HITL checklist (C1–C6)
+
+| # | Stage | Status | Entry |
+|---|--------|--------|--------|
+| C1 | Heuristics (unit/scope/entity/unrelated) | done | [`classify-relation.ts`](../src/lib/pipeline/classify-relation.ts) |
+| C2 | LLM batch parse harden | done | `parseClassifyBatchResponse` / `normalizeClassificationResult` |
+| C3 | `review_status` persist + gate | done | [`review-status.ts`](../src/lib/pipeline/review-status.ts) |
+| C4 | Threshold / classify config | done | [`config.ts`](../src/lib/config.ts) |
+| C5 | HITL API + Compare/Issues UI | done | `POST /api/relations/:id/review` |
+| C6 | Golden fixtures + offline eval | done | [`classify-fixtures.ts`](../src/lib/pipeline/classify-fixtures.ts), `npm run smoke:classify` |
 
 Smoke:
 
 ```bash
 npm test
-npm run smoke:hybrid   # offline hybrid recall fixture
-npm run smoke:embed    # optional live MiniLM download
+npm run smoke:hybrid     # offline hybrid recall fixture
+npm run smoke:classify   # offline Agrees/Conflicts/Reconciled/Unrelated + HITL goldens
+npm run smoke:embed      # optional live MiniLM download
 ```
 
 ---
