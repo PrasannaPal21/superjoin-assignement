@@ -85,8 +85,13 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
     let local = 0;
     try {
       const results = await classifyRelationBatch(batch);
+      let missing = 0;
       results.forEach((result, idx) => {
-        if (!result || result.relationType === "unrelated") return;
+        if (!result) {
+          missing += 1;
+          return;
+        }
+        if (result.relationType === "unrelated") return;
         const pair = batch[idx];
         insertRelation({
           id: randomUUID(),
@@ -99,6 +104,18 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
         });
         local += 1;
       });
+      if (missing > 0) {
+        insertFailure({
+          id: randomUUID(),
+          document_id: documentId,
+          stage: "match",
+          summary: `Classify batch missing ${missing}/${batch.length} indexes`,
+          detail:
+            "LLM returned partial/invalid JSON for some pair indexes; those pairs were skipped.",
+          suggestion:
+            "Rematch after rate limits cool, or lower MATCH_BATCH_SIZE for stabler classify batches.",
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "match batch failed";
       insertFailure({

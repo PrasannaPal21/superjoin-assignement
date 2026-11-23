@@ -3,8 +3,11 @@ import type { FactRow } from "@/lib/db/facts";
 import {
   ENTITY_MISMATCH_RERANK_KEEP,
   classifyRelationHeuristic,
+  clampConfidence,
+  normalizeClassificationResult,
   normalizeScope,
   normalizeUnit,
+  parseClassifyBatchResponse,
 } from "@/lib/pipeline/classify-relation";
 
 function fact(partial: Partial<FactRow> & Pick<FactRow, "id">): FactRow {
@@ -192,5 +195,59 @@ describe("classify heuristics (stage 1)", () => {
       period: "FY24",
     });
     expect(classifyRelationHeuristic(a, b)?.relationType).toBe("corroborates");
+  });
+});
+
+describe("classify LLM parse hardening (stage 2)", () => {
+  it("clamps confidence into [0,1]", () => {
+    expect(clampConfidence(1.5)).toBe(1);
+    expect(clampConfidence(-0.2)).toBe(0);
+    expect(clampConfidence("0.7")).toBeCloseTo(0.7, 5);
+    expect(clampConfidence("nope")).toBe(0.5);
+  });
+
+  it("normalizes a single classification payload", () => {
+    const ok = normalizeClassificationResult({
+      relationType: "reconciled",
+      rationale: "Different FY",
+      contextTags: ["time"],
+      confidence: 1.2,
+    });
+    expect(ok?.relationType).toBe("reconciled");
+    expect(ok?.confidence).toBe(1);
+    expect(
+      normalizeClassificationResult({ relationType: "nope", confidence: 0.5 }),
+    ).toBeNull();
+  });
+
+  it("parses batch responses without throwing on missing indexes", () => {
+    const raw = JSON.stringify({
+      results: [
+        {
+          index: 0,
+          relationType: "corroborates",
+          rationale: "same",
+          contextTags: [],
+          confidence: 0.9,
+        },
+        {
+          index: 2,
+          relationType: "contradicts",
+          rationale: "conflict",
+          contextTags: [],
+          confidence: 0.8,
+        },
+        { index: 99, relationType: "unrelated", rationale: "x", confidence: 0.5 },
+      ],
+    });
+    const out = parseClassifyBatchResponse(raw, 3);
+    expect(out).toHaveLength(3);
+    expect(out[0]?.relationType).toBe("corroborates");
+    expect(out[1]).toBeNull();
+    expect(out[2]?.relationType).toBe("contradicts");
+  });
+
+  it("returns all-null on garbage JSON instead of throwing", () => {
+    expect(parseClassifyBatchResponse("not json {{{", 2)).toEqual([null, null]);
   });
 });

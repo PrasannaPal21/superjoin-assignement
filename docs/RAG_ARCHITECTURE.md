@@ -324,7 +324,10 @@ Heuristics (stage 1) short-circuit clear cases without Groq:
 - different entity family or fact type (weak rerank) → `unrelated` (dropped)
 - strong rerank + odd entity/type → leave for LLM
 
-LLM only sees remaining ambiguous post-rerank pairs.
+LLM (stage 2) only sees remaining ambiguous post-rerank pairs:
+- Stronger finance prompt (`CLASSIFY_SYSTEM_PROMPT`) preferring reconciled/unrelated over false conflicts
+- Batched via `MATCH_BATCH_SIZE` on `GROQ_MATCH_MODEL`
+- Soft parse: clamp confidence, missing indexes → null + failure journal (job continues)
 
 ---
 
