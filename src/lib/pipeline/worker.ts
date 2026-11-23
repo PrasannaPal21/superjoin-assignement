@@ -10,18 +10,13 @@ import {
 } from "@/lib/db/jobs";
 import { insertFailure } from "@/lib/db/facts";
 import { extractPdfPages } from "@/lib/pdf/parse";
-import { applyPageSignals } from "@/lib/pdf/signal";
-import { summarizeSections } from "@/lib/pdf/structure";
-import { childChunksFromParent } from "@/lib/pdf/children";
-import { parentChunksFromBlocks } from "@/lib/pdf/parents";
+import { buildChunkHierarchy } from "@/lib/pdf/hierarchy";
 import {
   selectExtractChildren,
   type ExtractJob,
 } from "@/lib/pdf/select-extract";
-import {
-  detectBlocksFromDocument,
-  summarizeBlocks,
-} from "@/lib/pdf/tables";
+import { summarizeSections } from "@/lib/pdf/structure";
+import { summarizeBlocks } from "@/lib/pdf/tables";
 import {
   extractAndStoreChunkFacts,
   persistChunk,
@@ -83,33 +78,28 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     const parsed = await extractPdfPages(doc.stored_path);
     updateDocumentStatus(documentId, "processing", { page_count: parsed.pageCount });
 
-    updateJobProgress(jobId, "scoring page signals", 0, 1);
-    applyPageSignals(parsed.pages);
-
-    updateJobProgress(jobId, "detecting sections + table blocks", 0, 1);
-    const { sections, blocks } = detectBlocksFromDocument(parsed.pages);
+    updateJobProgress(jobId, "building parent/child hierarchy", 0, 1);
+    const hierarchy = buildChunkHierarchy(parsed.pages);
     updateJobProgress(
       jobId,
-      `${summarizeSections(sections)}; ${summarizeBlocks(blocks)}`,
+      `${summarizeSections(hierarchy.sections)}; ${summarizeBlocks(hierarchy.blocks)}`,
       0,
       1,
     );
 
-    // Steps 4–5: persist parents + children; collect extract jobs.
     updateJobProgress(jobId, "persisting parent + child chunks", 0, 1);
-    const parents = parentChunksFromBlocks(blocks);
     const extractJobs: ExtractJob[] = [];
-    for (const parent of parents) {
-      const parentId = persistChunk(documentId, parent);
-      const children = childChunksFromParent(parent, parentId);
-      for (const child of children) {
-        const childId = persistChunk(documentId, child);
-        extractJobs.push({ child, childId, parent });
+    for (const node of hierarchy.nodes) {
+      const parentId = persistChunk(documentId, node.parent);
+      for (const child of node.children) {
+        const linked = { ...child, parentId };
+        const childId = persistChunk(documentId, linked);
+        extractJobs.push({ child: linked, childId, parent: node.parent });
       }
     }
     updateJobProgress(
       jobId,
-      `stored ${parents.length} parents + ${extractJobs.length} children`,
+      `stored ${hierarchy.nodes.length} parents + ${extractJobs.length} children`,
       0,
       1,
     );
@@ -130,7 +120,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       });
     }
 
-    // Step 6: extract on highest-signal children with parent context (no flat packs).
+    // Extract on highest-signal children with parent context.
     const selected = selectExtractChildren(extractJobs);
     if (selected.length === 0) {
       insertFailure({

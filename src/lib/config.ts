@@ -48,11 +48,6 @@ export function getSignalMinScore(): number {
   return Math.max(0, Number(process.env.SIGNAL_MIN_SCORE || "0.8"));
 }
 
-/** Soft page target per chunk; packing also respects char budget. */
-export function getChunkPages(): number {
-  return Math.max(1, Number(process.env.CHUNK_PAGES || "8"));
-}
-
 /** Child narrative pack targets (approx tokens; chars≈tokens*4). */
 export function getChildMinTokens(): number {
   return Math.max(50, Number(process.env.CHILD_MIN_TOKENS || "200"));

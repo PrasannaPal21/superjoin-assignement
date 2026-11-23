@@ -52,7 +52,7 @@ export function persistChunk(
       chunk.pageEnd,
       chunk.text,
       chunk.tokenEstimate,
-      chunk.kind ?? "flat",
+      chunk.kind ?? "child",
       chunk.parentId ?? null,
       chunk.sectionTitle ?? null,
       chunk.blockKind ?? null,

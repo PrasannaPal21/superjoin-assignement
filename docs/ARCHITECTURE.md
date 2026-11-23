@@ -29,7 +29,7 @@ UI (Next.js) → API routes → job queue → pipeline worker
 |---------------|------|
 | `documents` | Upload metadata, content hash, status |
 | `jobs` / `pipeline_runs` | Queue + progress checkpoints |
-| `chunks` | Text units with hierarchy fields: `kind` (`flat` today; later `parent`/`child`), `parent_id`, `section_title` |
+| `chunks` | Hierarchy text units: `kind` (`parent` \| `child`; legacy `flat` may exist in old DBs), `parent_id`, `section_title`, `block_kind` |
 | `facts` | Normalized claims (`fact_type` free-form; `match_key`) |
 | `evidence` | Quote + page grounding |
 | `fact_embeddings` / `evidence_embeddings` | Dense vectors + `embedding_model` |
@@ -47,21 +47,20 @@ Local default: SQLite with a vector extension. Schema maps cleanly to Postgres +
 2. **Parse + local OCR** — pdf.js per-page text; sparse/image pages → rasterize → **Tesseract.js** (no LLM tokens). Journal only if text is still unusable after OCR.
 3. **Signal prior** — score each page for finance/KPI density ([`signal.ts`](../src/lib/pdf/signal.ts)); drop TOC/glossary; keep top pages under extract budget. Budget only — not section boundaries.
 4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)).
-5. **Parent chunks** — persist each block as `kind=parent` ([`parents.ts`](../src/lib/pdf/parents.ts)) with `section_title` + `block_kind`.
-6. **Child chunks** — split parents into `kind=child` with `parent_id` ([`children.ts`](../src/lib/pdf/children.ts)): narrative by ~200–800 tokens; tables as header + row groups.
-7. **Extract** — Groq JSON on **child** chunks with parent/section context (`GROQ_EXTRACT_MODEL`); top children by signal capped by `MAX_EXTRACT_CHUNKS`; Zod + JSON repair; ~12 facts / child. Evidence quotes come from the child excerpt.
-8. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
+5. **Parent–child hierarchy** — [`hierarchy.ts`](../src/lib/pdf/hierarchy.ts) / [`parents.ts`](../src/lib/pdf/parents.ts) / [`children.ts`](../src/lib/pdf/children.ts): blocks → `kind=parent` → `kind=child` with `parent_id`. Flat page-packing is removed.
+6. **Extract** — Groq JSON on **child** chunks with parent/section context (`GROQ_EXTRACT_MODEL`); top children by signal capped by `MAX_EXTRACT_CHUNKS` ([`select-extract.ts`](../src/lib/pdf/select-extract.ts)); Zod + JSON repair; ~12 facts / child. Evidence quotes come from the child excerpt.
+7. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
 
 ### Query-time (Compare)
 
-9. **Hybrid recall** — exact `match_key` ∪ BM25 ∪ dense top-K; metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
-10. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
-11. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
-12. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
+8. **Hybrid recall** — exact `match_key` ∪ BM25 ∪ dense top-K; metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
+9. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
+10. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
+11. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
 
 ### Query-time (Ask)
 
-13. Embed question → hybrid retrieve facts/evidence → RRF → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
+12. Embed question → hybrid retrieve facts/evidence → RRF → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
 
 New documents match **against existing facts only**. Older documents are not re-extracted on every ingest.
 

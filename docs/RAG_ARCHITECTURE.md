@@ -147,10 +147,10 @@ flowchart TD
 | Signal prior | Pages with text | `signalScore` per page | KPI/finance density via [`signal.ts`](../src/lib/pdf/signal.ts); TOC/glossary penalized; selects extract budget |
 | Structure segment | High-signal pages | `DocumentSection[]` | Heading heuristics in [`structure.ts`](../src/lib/pdf/structure.ts); inspect via job progress / `scripts/smoke-sections.ts` |
 | Table blocks | Sections | `DocumentBlock` (`table` \| `narrative`) | Number/header heuristics in [`tables.ts`](../src/lib/pdf/tables.ts); inspect via `scripts/smoke-blocks.ts` |
-| Parent chunks | Blocks | `chunks.kind=parent` | [`parents.ts`](../src/lib/pdf/parents.ts); stored before flat extract |
+| Hierarchy builder | Pages | parents + children | [`hierarchy.ts`](../src/lib/pdf/hierarchy.ts) — default path |
+| Parent chunks | Blocks | `chunks.kind=parent` | [`parents.ts`](../src/lib/pdf/parents.ts) |
 | Child chunks | Parents | `chunks.kind=child` + `parent_id` | [`children.ts`](../src/lib/pdf/children.ts); narrative packs + table header/row groups |
-| Extract on children | Top children + parent context | Facts + evidence | [`extract.ts`](../src/lib/llm/extract.ts) + [`select-extract.ts`](../src/lib/pdf/select-extract.ts); flat packs no longer used for extract |
-| Extract | Child + parent ctx | Facts + evidence | Cheaper extract model; Zod + repair |
+| Extract | Top children + parent context | Facts + evidence | [`extract.ts`](../src/lib/llm/extract.ts) + [`select-extract.ts`](../src/lib/pdf/select-extract.ts); Zod + repair |
 | Fact card | Fact row | Canonical string | See §5 |
 | Embed | Fact card / quote | Vectors | Versioned `embedding_model` |
 | Sparse index | Tokens from claim/entity/type | BM25 / lexical posting | Complements dense |

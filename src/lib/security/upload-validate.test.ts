@@ -6,13 +6,16 @@ import {
 } from "./upload-validate";
 import { repairJsonText, parseJsonWithRepair } from "@/lib/llm/json-repair";
 import { ExtractionResultSchema } from "@/lib/llm/schemas";
-import { chunkPages } from "@/lib/pdf/chunk";
 import {
   applyPageSignals,
   explainPageSignal,
   scorePageSignal,
   selectHighSignalPages,
 } from "@/lib/pdf/signal";
+import {
+  buildChunkHierarchy,
+  flattenHierarchyChildren,
+} from "@/lib/pdf/hierarchy";
 import {
   detectSections,
   isSectionHeading,
@@ -336,38 +339,29 @@ describe("extract child selection (step 6)", () => {
   });
 });
 
-describe("chunking", () => {
-  it("packs signal-rich pages and skips fluff", () => {
-    const pages = applyPageSignals([
+describe("hierarchy chunking (step 7 default)", () => {
+  it("builds parent/child hierarchy and skips TOC-only signal pages", () => {
+    const pages = [
       { pageNumber: 1, text: "Table of contents ............ 1" },
       {
         pageNumber: 2,
-        text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
+        text: [
+          "Financial Highlights",
+          "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
+          "Particulars  FY23  FY24",
+          "Revenue from operations  3,000.00  4,815.04",
+          "EBITDA  250.50  312.00",
+        ].join("\n"),
       },
-      {
-        pageNumber: 3,
-        text: "EBITDA stood at ₹ 312 crore for FY24. Shipments and pin code coverage expanded.",
-      },
-    ]);
-    const chunks = chunkPages(pages, 2);
-    expect(chunks.length).toBeGreaterThanOrEqual(1);
-    expect(chunks[0].pageStart).toBeGreaterThanOrEqual(2);
-    expect(chunks.some((c) => c.text.includes("Revenue"))).toBe(true);
-  });
+    ];
+    const hierarchy = buildChunkHierarchy(pages);
+    expect(hierarchy.nodes.length).toBeGreaterThanOrEqual(1);
+    expect(hierarchy.nodes.every((n) => n.parent.kind === "parent")).toBe(true);
 
-  it("step 1: packed chunks carry hierarchy fields with flat defaults", () => {
-    const pages = applyPageSignals([
-      {
-        pageNumber: 2,
-        text: "Revenue from operations was ₹ 4,815.04 crore in Fiscal 2021 with capacity utilization at 72%.",
-      },
-    ]);
-    const chunks = chunkPages(pages, 2);
-    expect(chunks.length).toBeGreaterThanOrEqual(1);
-    for (const c of chunks) {
-      expect(c.kind).toBe("flat");
-      expect(c.parentId ?? null).toBeNull();
-      expect(c.sectionTitle ?? null).toBeNull();
-    }
+    const children = flattenHierarchyChildren(hierarchy);
+    expect(children.length).toBeGreaterThanOrEqual(1);
+    expect(children.every((c) => c.kind === "child")).toBe(true);
+    expect(children.every((c) => typeof c.parentId === "string")).toBe(true);
+    expect(children.some((c) => /Revenue|EBITDA/i.test(c.text))).toBe(true);
   });
 });

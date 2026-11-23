@@ -33,7 +33,7 @@ export function migrateChunkHierarchy(): void {
       page_end INTEGER NOT NULL,
       text TEXT NOT NULL,
       token_estimate INTEGER,
-      kind TEXT NOT NULL DEFAULT 'flat',
+      kind TEXT NOT NULL DEFAULT 'child',
       parent_id TEXT,
       section_title TEXT,
       block_kind TEXT,
@@ -46,7 +46,8 @@ export function migrateChunkHierarchy(): void {
   `);
 
   // Existing DBs created before hierarchy fields.
-  addColumnIfMissing("chunks", "kind", `TEXT NOT NULL DEFAULT 'flat'`);
+  // Existing rows may still have kind='flat' from older builds; new rows use parent|child.
+  addColumnIfMissing("chunks", "kind", `TEXT NOT NULL DEFAULT 'child'`);
   addColumnIfMissing("chunks", "parent_id", `TEXT`);
   addColumnIfMissing("chunks", "section_title", `TEXT`);
   addColumnIfMissing("chunks", "block_kind", `TEXT`);

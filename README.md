@@ -97,7 +97,7 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `OCR_LANG` | Tesseract language | `eng` |
 | `OCR_CONCURRENCY` | Parallel OCR pages | `1` |
 | `SIGNAL_MIN_SCORE` | Min page signal to enter extract packing | `0.8` |
-| `CHUNK_PAGES` / `CHUNK_CHAR_BUDGET` | Pack soft limits | `8` / `12000` |
+| `CHUNK_CHAR_BUDGET` | Parent text cap | `12000` |
 | `CHILD_MIN_TOKENS` / `CHILD_MAX_TOKENS` | Narrative child size | `200` / `800` |
 | `CHILD_TABLE_ROWS` | Rows per table child (header repeated) | `5` |
 | `MAX_EXTRACT_CHUNKS` | Hard cap extract calls / PDF | `16` |
