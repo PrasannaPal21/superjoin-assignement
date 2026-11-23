@@ -14,6 +14,7 @@ import { mapPool } from "@/lib/pipeline/pool";
 import { setMatchHandler } from "@/lib/pipeline/worker";
 import { insertFailure } from "@/lib/db/facts";
 import { suggestionForError } from "@/lib/pipeline/error-hints";
+import { decideReviewStatus } from "@/lib/pipeline/review-status";
 
 function refreshMatchKeys(): number {
   let n = 0;
@@ -68,6 +69,10 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
         rationale: heuristic.rationale,
         context_tags: JSON.stringify(heuristic.contextTags || []),
         confidence: heuristic.confidence,
+        review_status: decideReviewStatus({
+          relationType: heuristic.relationType,
+          confidence: heuristic.confidence,
+        }),
       });
       written += 1;
       continue;
@@ -101,6 +106,10 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
           rationale: result.rationale,
           context_tags: JSON.stringify(result.contextTags || []),
           confidence: result.confidence,
+          review_status: decideReviewStatus({
+            relationType: result.relationType,
+            confidence: result.confidence,
+          }),
         });
         local += 1;
       });

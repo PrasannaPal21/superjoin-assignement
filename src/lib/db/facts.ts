@@ -28,6 +28,12 @@ export type EvidenceRow = {
   created_at: string;
 };
 
+export type ReviewStatus =
+  | "auto_accepted"
+  | "needs_review"
+  | "confirmed"
+  | "rejected";
+
 export type RelationRow = {
   id: string;
   fact_a_id: string;
@@ -36,6 +42,7 @@ export type RelationRow = {
   rationale: string | null;
   context_tags: string | null;
   confidence: number;
+  review_status: ReviewStatus | string;
   created_at: string;
 };
 
@@ -91,17 +98,26 @@ export function insertEvidence(row: Omit<EvidenceRow, "created_at">): void {
     .run(row);
 }
 
-export function insertRelation(row: Omit<RelationRow, "created_at">): void {
+export function insertRelation(
+  row: Omit<RelationRow, "created_at" | "review_status"> & {
+    review_status?: ReviewStatus | string;
+  },
+): void {
   ensureDb();
   getDb()
     .prepare(
       `INSERT INTO relations (
-        id, fact_a_id, fact_b_id, relation_type, rationale, context_tags, confidence
+        id, fact_a_id, fact_b_id, relation_type, rationale, context_tags,
+        confidence, review_status
       ) VALUES (
-        @id, @fact_a_id, @fact_b_id, @relation_type, @rationale, @context_tags, @confidence
+        @id, @fact_a_id, @fact_b_id, @relation_type, @rationale, @context_tags,
+        @confidence, @review_status
       )`,
     )
-    .run(row);
+    .run({
+      ...row,
+      review_status: row.review_status ?? "auto_accepted",
+    });
 }
 
 export function insertFailure(row: Omit<FailureRow, "created_at">): void {
@@ -194,6 +210,27 @@ export function listRelations(type?: string): RelationRow[] {
   return getDb()
     .prepare("SELECT * FROM relations ORDER BY created_at DESC")
     .all() as RelationRow[];
+}
+
+export function listRelationsByReviewStatus(
+  reviewStatus: ReviewStatus | string,
+): RelationRow[] {
+  ensureDb();
+  return getDb()
+    .prepare(
+      `SELECT * FROM relations WHERE review_status = ? ORDER BY created_at DESC`,
+    )
+    .all(reviewStatus) as RelationRow[];
+}
+
+export function updateRelationReviewStatus(
+  id: string,
+  reviewStatus: ReviewStatus,
+): void {
+  ensureDb();
+  getDb()
+    .prepare(`UPDATE relations SET review_status = ? WHERE id = ?`)
+    .run(reviewStatus, id);
 }
 
 export function listFailures(): FailureRow[] {

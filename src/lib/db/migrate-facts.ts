@@ -1,5 +1,24 @@
 import { getDb } from "./client";
 
+function columnNames(table: string): Set<string> {
+  const rows = getDb()
+    .prepare(`PRAGMA table_info(${table})`)
+    .all() as Array<{ name: string }>;
+  return new Set(rows.map((r) => r.name));
+}
+
+function migrateRelationReviewStatus(): void {
+  const cols = columnNames("relations");
+  if (!cols.has("review_status")) {
+    getDb().exec(
+      `ALTER TABLE relations ADD COLUMN review_status TEXT NOT NULL DEFAULT 'auto_accepted'`,
+    );
+  }
+  getDb().exec(
+    `CREATE INDEX IF NOT EXISTS idx_relations_review ON relations(review_status)`,
+  );
+}
+
 export function migrateFactsAndRelations(): void {
   const db = getDb();
 
@@ -51,6 +70,7 @@ export function migrateFactsAndRelations(): void {
       rationale TEXT,
       context_tags TEXT,
       confidence REAL NOT NULL DEFAULT 0.5,
+      review_status TEXT NOT NULL DEFAULT 'auto_accepted',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (fact_a_id) REFERENCES facts(id) ON DELETE CASCADE,
       FOREIGN KEY (fact_b_id) REFERENCES facts(id) ON DELETE CASCADE
@@ -58,6 +78,7 @@ export function migrateFactsAndRelations(): void {
 
     CREATE INDEX IF NOT EXISTS idx_relations_type ON relations(relation_type);
     CREATE INDEX IF NOT EXISTS idx_relations_facts ON relations(fact_a_id, fact_b_id);
+    CREATE INDEX IF NOT EXISTS idx_relations_review ON relations(review_status);
 
     CREATE TABLE IF NOT EXISTS failures (
       id TEXT PRIMARY KEY,
@@ -70,4 +91,7 @@ export function migrateFactsAndRelations(): void {
       FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
     );
   `);
+
+  // Additive for DBs created before review_status existed.
+  migrateRelationReviewStatus();
 }

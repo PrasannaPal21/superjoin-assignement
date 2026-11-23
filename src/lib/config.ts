@@ -120,6 +120,15 @@ export function getMatchBatchSize(): number {
   return Math.max(2, Number(process.env.MATCH_BATCH_SIZE || "6"));
 }
 
+/**
+ * Low-confidence contradicts below this go to HITL (`needs_review`).
+ * Default 0.75.
+ */
+export function getConflictReviewThreshold(): number {
+  const n = Number(process.env.CONFLICT_REVIEW_THRESHOLD || "0.75");
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.75;
+}
+
 /** cascade (default) | cross_encoder | llm */
 export function getRerankProvider(): "cascade" | "cross_encoder" | "llm" {
   const raw = process.env.RERANK_PROVIDER?.trim().toLowerCase();

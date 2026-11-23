@@ -422,6 +422,7 @@ erDiagram
     string review_status
     string context_tags
   }
+  %% review_status: auto_accepted | needs_review | confirmed | rejected
 ```
 
 ---
@@ -497,8 +498,9 @@ flowchart LR
 | 9 | Evidence Ask prep | done | [`hybrid-ask.ts`](../src/lib/embeddings/hybrid-ask.ts) |
 | 10 | Fixtures + smoke | done | [`fixtures.ts`](../src/lib/embeddings/fixtures.ts), `npm run smoke:hybrid` |
 
-**Not in this pipeline (next phases):** Ask generation, HITL conflict gate, GraphRAG.  
-**Rerank:** cascade CE + rare LLM — implemented (`RERANK_PROVIDER=cascade`).
+**Not in this pipeline (next phases):** Ask generation, HITL confirm/reject UI (C5), GraphRAG.  
+**Rerank:** cascade CE + rare LLM — implemented.  
+**HITL persist (C3):** `review_status` on relations (`needs_review` for weak contradicts).
 
 Smoke:
 

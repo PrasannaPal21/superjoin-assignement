@@ -33,7 +33,12 @@ function factSummary(id: string) {
 
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get("type") || undefined;
-  const relations = listRelations(type).slice(0, 300).map((r) => {
+  const review = req.nextUrl.searchParams.get("review") || undefined;
+  let rows = listRelations(type);
+  if (review) {
+    rows = rows.filter((r) => r.review_status === review);
+  }
+  const relations = rows.slice(0, 300).map((r) => {
     let contextTags: string[] = [];
     try {
       contextTags = r.context_tags ? JSON.parse(r.context_tags) : [];
@@ -46,6 +51,7 @@ export async function GET(req: NextRequest) {
       rationale: r.rationale,
       contextTags,
       confidence: r.confidence,
+      reviewStatus: r.review_status ?? "auto_accepted",
       createdAt: r.created_at,
       a: factSummary(r.fact_a_id),
       b: factSummary(r.fact_b_id),
@@ -56,6 +62,8 @@ export async function GET(req: NextRequest) {
     corroborates: relations.filter((r) => r.relationType === "corroborates").length,
     contradicts: relations.filter((r) => r.relationType === "contradicts").length,
     reconciled: relations.filter((r) => r.relationType === "reconciled").length,
+    needsReview: relations.filter((r) => r.reviewStatus === "needs_review")
+      .length,
   };
 
   return NextResponse.json({ relations, counts });
