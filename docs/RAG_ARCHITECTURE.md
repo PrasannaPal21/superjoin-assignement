@@ -194,7 +194,8 @@ Table children keep **row label + period columns + values** together so period/s
 ## 5. Embedding strategy
 
 Index text builders: [`index-text.ts`](../src/lib/embeddings/index-text.ts).  
-Index-time embed after extract: [`index-document.ts`](../src/lib/embeddings/index-document.ts) (wired in the pipeline worker; skip/re-embed on model bump).
+Index-time embed after extract: [`index-document.ts`](../src/lib/embeddings/index-document.ts) (facts + evidence; skip/re-embed on model bump).  
+Evidence Ask prep: sparse postings + [`hybridRetrieveEvidence`](../src/lib/embeddings/hybrid-ask.ts) (citation-ready hits; generation later).
 
 ### Fact card template (Compare / matching)
 
@@ -433,6 +434,7 @@ flowchart LR
     dense[dense.ts]
     rrf[rrf.ts]
     hybrid[hybrid.ts]
+    hybridAsk[hybrid-ask.ts]
   end
   subgraph dbemb [src/lib/db]
     migrateEmb[migrate-embeddings.ts]

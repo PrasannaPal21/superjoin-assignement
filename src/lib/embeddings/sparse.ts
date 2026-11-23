@@ -1,12 +1,21 @@
 import {
+  averageEvidenceSparseDocLength,
   averageSparseDocLength,
+  countEvidenceSparseDocs,
   countSparseDocs,
   documentFrequency,
+  evidenceDocumentFrequency,
+  listEvidencePostingsForToken,
   listPostingsForToken,
+  upsertEvidenceSparseIndex,
   upsertFactSparseIndex,
 } from "@/lib/db/sparse";
-import { listFacts } from "@/lib/db/facts";
-import { buildFactCard, tokenizeIndexText } from "@/lib/embeddings/index-text";
+import { listEvidenceForDocument, listFacts } from "@/lib/db/facts";
+import {
+  buildEvidenceIndexText,
+  buildFactCard,
+  tokenizeIndexText,
+} from "@/lib/embeddings/index-text";
 
 /** Okapi BM25 defaults. */
 export const BM25_K1 = 1.2;
@@ -24,6 +33,7 @@ export type SparseSearchOptions = {
 
 export type IndexSparseResult = {
   factsIndexed: number;
+  evidenceIndexed: number;
 };
 
 export function termFrequencies(tokens: string[]): Map<string, number> {
@@ -72,7 +82,21 @@ export function indexFactSparse(factId: string, indexText: string): void {
   });
 }
 
-/** Build sparse postings for every fact in a document (ingest). */
+/** Index sparse postings for one evidence quote (Ask). */
+export function indexEvidenceSparse(
+  evidenceId: string,
+  indexText: string,
+): void {
+  const tokens = tokenizeIndexText(indexText);
+  upsertEvidenceSparseIndex({
+    evidenceId,
+    tokenCount: Math.max(tokens.length, 1),
+    indexText,
+    termFrequencies: termFrequencies(tokens),
+  });
+}
+
+/** Build sparse postings for every fact + evidence in a document (ingest). */
 export function indexDocumentSparse(documentId: string): IndexSparseResult {
   const facts = listFacts(documentId);
   let factsIndexed = 0;
@@ -84,7 +108,19 @@ export function indexDocumentSparse(documentId: string): IndexSparseResult {
     indexFactSparse(fact.id, text);
     factsIndexed += 1;
   }
-  return { factsIndexed };
+
+  const evidence = listEvidenceForDocument(documentId);
+  let evidenceIndexed = 0;
+  for (const row of evidence) {
+    const text =
+      buildEvidenceIndexText(row).replace(/\s+/g, " ").trim() ||
+      row.quote ||
+      `evidence:${row.id}`;
+    indexEvidenceSparse(row.id, text);
+    evidenceIndexed += 1;
+  }
+
+  return { factsIndexed, evidenceIndexed };
 }
 
 /**
@@ -125,5 +161,51 @@ export function sparseSearch(
   return [...scores.entries()]
     .map(([factId, score]) => ({ factId, score }))
     .sort((a, b) => b.score - a.score || a.factId.localeCompare(b.factId))
+    .slice(0, topK);
+}
+
+export type SparseEvidenceHit = {
+  evidenceId: string;
+  score: number;
+};
+
+/** BM25 over evidence quote index (Ask lexical channel). */
+export function sparseSearchEvidence(
+  query: string,
+  topK = 20,
+  opts: SparseSearchOptions = {},
+): SparseEvidenceHit[] {
+  const tokens = [...new Set(tokenizeIndexText(query))];
+  if (tokens.length === 0 || topK <= 0) return [];
+
+  const scope = { excludeDocumentId: opts.excludeDocumentId };
+  const N = countEvidenceSparseDocs(scope);
+  if (N === 0) return [];
+  const avgdl = averageEvidenceSparseDocLength(scope);
+
+  const scores = new Map<string, number>();
+
+  for (const token of tokens) {
+    const df = evidenceDocumentFrequency(token, scope);
+    if (df === 0) continue;
+    const idf = bm25Idf(N, df);
+    const postings = listEvidencePostingsForToken(token, scope);
+    for (const row of postings) {
+      const add = bm25TermScore({
+        tf: row.tf,
+        docLen: row.token_count,
+        avgdl,
+        idf,
+      });
+      scores.set(row.evidence_id, (scores.get(row.evidence_id) ?? 0) + add);
+    }
+  }
+
+  return [...scores.entries()]
+    .map(([evidenceId, score]) => ({ evidenceId, score }))
+    .sort(
+      (a, b) =>
+        b.score - a.score || a.evidenceId.localeCompare(b.evidenceId),
+    )
     .slice(0, topK);
 }

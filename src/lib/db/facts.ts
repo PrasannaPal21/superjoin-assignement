@@ -163,6 +163,27 @@ export function listEvidenceForDocument(documentId: string): EvidenceRow[] {
     .all(documentId) as EvidenceRow[];
 }
 
+export function getEvidence(id: string): EvidenceRow | null {
+  ensureDb();
+  return (
+    (getDb()
+      .prepare(`SELECT * FROM evidence WHERE id = ?`)
+      .get(id) as EvidenceRow | undefined) ?? null
+  );
+}
+
+export function getEvidenceByIds(ids: string[]): EvidenceRow[] {
+  if (ids.length === 0) return [];
+  ensureDb();
+  const stmt = getDb().prepare(`SELECT * FROM evidence WHERE id = ?`);
+  const out: EvidenceRow[] = [];
+  for (const id of ids) {
+    const row = stmt.get(id) as EvidenceRow | undefined;
+    if (row) out.push(row);
+  }
+  return out;
+}
+
 export function listRelations(type?: string): RelationRow[] {
   ensureDb();
   if (type) {

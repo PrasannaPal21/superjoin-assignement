@@ -33,7 +33,8 @@ UI (Next.js) → API routes → job queue → pipeline worker
 | `facts` | Normalized claims (`fact_type` free-form; `match_key`) |
 | `evidence` | Quote + page grounding |
 | `fact_embeddings` / `evidence_embeddings` | Dense Float32 BLOB vectors + `model` / `dimensions` / `index_text` ([`migrate-embeddings.ts`](../src/lib/db/migrate-embeddings.ts), [`embeddings.ts`](../src/lib/db/embeddings.ts)) |
-| `fact_sparse_docs` / `fact_sparse_postings` | BM25 lexical index over fact cards ([`migrate-sparse.ts`](../src/lib/db/migrate-sparse.ts), [`sparse.ts`](../src/lib/embeddings/sparse.ts) → `sparseSearch`) |
+| `fact_sparse_docs` / `fact_sparse_postings` | BM25 over fact cards (`sparseSearch`) |
+| `evidence_sparse_docs` / `evidence_sparse_postings` | BM25 over evidence quotes (`sparseSearchEvidence` / Ask hybrid) |
 | `relations` | Pairwise links + `review_status` (HITL) |
 | `failures` | Honest failure journal |
 
@@ -60,7 +61,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 
 ### Query-time (Ask)
 
-12. Embed question → hybrid retrieve facts/evidence → RRF → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
+12. Embed question → [`hybridRetrieveEvidence`](../src/lib/embeddings/hybrid-ask.ts) (BM25 ∪ dense evidence + RRF; sparse+dense indexed on ingest) → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
 
 New documents match **against existing facts only**. Older documents are not re-extracted on every ingest.
 

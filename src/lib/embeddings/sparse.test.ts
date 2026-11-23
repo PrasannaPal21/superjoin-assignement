@@ -124,6 +124,7 @@ describe("sparse / BM25 (embeddings step 5)", () => {
 
     const indexed = indexDocumentSparse(docA);
     expect(indexed.factsIndexed).toBe(2);
+    expect(indexed.evidenceIndexed).toBe(0);
     indexDocumentSparse(docB);
 
     expect(getFactSparseDoc(revenueId)?.token_count).toBeGreaterThan(0);

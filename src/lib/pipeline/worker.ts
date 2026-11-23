@@ -208,7 +208,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
         const sparse = indexDocumentSparse(documentId);
         updateJobProgress(
           jobId,
-          `sparse-indexed ${sparse.factsIndexed} facts`,
+          `sparse-indexed ${sparse.factsIndexed} facts / ${sparse.evidenceIndexed} evidence`,
           1,
           1,
         );
