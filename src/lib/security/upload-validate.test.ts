@@ -30,6 +30,12 @@ import {
   tableLineScore,
 } from "@/lib/pdf/tables";
 import {
+  buildEvidenceIndexText,
+  buildFactCard,
+  buildFactCardCompact,
+  tokenizeIndexText,
+} from "@/lib/embeddings/index-text";
+import {
   getOcrMinTextChars,
   isOcrEnabled,
 } from "@/lib/config";
@@ -76,6 +82,80 @@ describe("fact schema", () => {
     });
     expect(parsed.facts).toHaveLength(1);
     expect(parsed.facts[0].factType).toBe("revenue");
+  });
+});
+
+describe("index text builders (embeddings step 1)", () => {
+  it("builds a stable fact card from camelCase or snake_case fields", () => {
+    const card = buildFactCard({
+      entity: "Delhivery Limited",
+      factType: "revenue",
+      claim: "Revenue from operations",
+      rawValue: "8143",
+      unit: "crore",
+      period: "FY24",
+      scope: "consolidated",
+    });
+    expect(card).toBe(
+      "Delhivery Limited | revenue | Revenue from operations | 8143 | crore | FY24 | consolidated",
+    );
+
+    const fromRow = buildFactCard({
+      entity: "Delhivery",
+      fact_type: "ebitda",
+      claim: "EBITDA",
+      raw_value: "312",
+      unit: "crore",
+      period: "FY24",
+      scope: null,
+    });
+    expect(fromRow).toContain("ebitda");
+    expect(fromRow).toContain("312");
+    expect(fromRow.endsWith("|")).toBe(false);
+  });
+
+  it("falls back to numericValue when rawValue is missing", () => {
+    expect(
+      buildFactCard({
+        claim: "PAT",
+        factType: "pat",
+        numericValue: 140.5,
+        unit: "crore",
+      }),
+    ).toContain("140.5");
+  });
+
+  it("builds compact cards without empty slots", () => {
+    expect(
+      buildFactCardCompact({
+        claim: "Pin code coverage",
+        factType: "coverage",
+        rawValue: "18000",
+      }),
+    ).toBe("coverage | Pin code coverage | 18000");
+  });
+
+  it("builds evidence index text with page + quote", () => {
+    expect(
+      buildEvidenceIndexText({
+        page: 12,
+        quote: "  Revenue from operations was ₹ 8,143 crore  ",
+      }),
+    ).toBe("page=12 | Revenue from operations was ₹ 8,143 crore");
+
+    expect(
+      buildEvidenceIndexText({ page: null, quote: "No page known" }),
+    ).toBe("page=? | No page known");
+  });
+
+  it("tokenizes index text for sparse retrieval", () => {
+    const tokens = tokenizeIndexText(
+      "Delhivery | revenue | Revenue from operations | 8143 | crore | FY24",
+    );
+    expect(tokens).toContain("delhivery");
+    expect(tokens).toContain("revenue");
+    expect(tokens).toContain("operations");
+    expect(tokens).toContain("crore");
   });
 });
 

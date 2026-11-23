@@ -193,6 +193,8 @@ Table children keep **row label + period columns + values** together so period/s
 
 ## 5. Embedding strategy
 
+Index text builders (step 1, no API yet): [`src/lib/embeddings/index-text.ts`](../src/lib/embeddings/index-text.ts).
+
 ### Fact card template (Compare / matching)
 
 ```text
@@ -202,7 +204,7 @@ entity | fact_type | claim | raw_value | unit | period | scope
 Example:
 
 ```text
-delhivery | revenue | Revenue from operations | 8143 | crore | FY24 | consolidated
+Delhivery Limited | revenue | Revenue from operations | 8143 | crore | FY24 | consolidated
 ```
 
 ### Evidence template (Ask)
