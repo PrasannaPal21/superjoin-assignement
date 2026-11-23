@@ -32,12 +32,12 @@ UI (Next.js) → API routes → job queue → pipeline worker
 | `chunks` | Hierarchy text units: `kind` (`parent` \| `child`; legacy `flat` may exist in old DBs), `parent_id`, `section_title`, `block_kind` |
 | `facts` | Normalized claims (`fact_type` free-form; `match_key`) |
 | `evidence` | Quote + page grounding |
-| `fact_embeddings` / `evidence_embeddings` | Dense vectors + `embedding_model` |
+| `fact_embeddings` / `evidence_embeddings` | Dense Float32 BLOB vectors + `model` / `dimensions` / `index_text` ([`migrate-embeddings.ts`](../src/lib/db/migrate-embeddings.ts), [`embeddings.ts`](../src/lib/db/embeddings.ts)) |
 | Sparse / BM25 postings | Lexical recall over claim / entity / type |
 | `relations` | Pairwise links + `review_status` (HITL) |
 | `failures` | Honest failure journal |
 
-Local default: SQLite with a vector extension. Schema maps cleanly to Postgres + pgvector ([SCALABILITY.md](SCALABILITY.md)).
+Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-vec yet; brute-force cosine at query time). Schema maps cleanly to Postgres + pgvector ([SCALABILITY.md](SCALABILITY.md)).
 
 ## Pipeline stages
 
@@ -49,7 +49,7 @@ Local default: SQLite with a vector extension. Schema maps cleanly to Postgres +
 4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)).
 5. **Parent–child hierarchy** — [`hierarchy.ts`](../src/lib/pdf/hierarchy.ts) / [`parents.ts`](../src/lib/pdf/parents.ts) / [`children.ts`](../src/lib/pdf/children.ts): blocks → `kind=parent` → `kind=child` with `parent_id`. Flat page-packing is removed.
 6. **Extract** — Groq JSON on **child** chunks with parent/section context (`GROQ_EXTRACT_MODEL`); top children by signal capped by `MAX_EXTRACT_CHUNKS` ([`select-extract.ts`](../src/lib/pdf/select-extract.ts)); Zod + JSON repair; ~12 facts / child. Evidence quotes come from the child excerpt.
-7. **Index** — `match_key`; fact-card / evidence index texts ([`index-text.ts`](../src/lib/embeddings/index-text.ts)); sparse tokens + dense embeddings (next steps).
+7. **Index** — `match_key`; fact-card / evidence index texts ([`index-text.ts`](../src/lib/embeddings/index-text.ts)); dense vectors in `fact_embeddings` / `evidence_embeddings` (local MiniLM + Float32 BLOBs); sparse tokens next.
 
 ### Query-time (Compare)
 

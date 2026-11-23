@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   hasPdfMagicBytes,
   looksLikePdfFilename,
@@ -41,6 +41,20 @@ import {
   getOcrMinTextChars,
   isOcrEnabled,
 } from "@/lib/config";
+import { ensureDb } from "@/lib/db";
+import { closeDb, getDbPath } from "@/lib/db/client";
+import { insertDocument } from "@/lib/db/documents";
+import {
+  getFactEmbedding,
+  listFactEmbeddings,
+  upsertEvidenceEmbedding,
+  upsertFactEmbedding,
+  getEvidenceEmbedding,
+} from "@/lib/db/embeddings";
+import { insertEvidence, insertFact } from "@/lib/db/facts";
+import { decodeVector, encodeVector } from "@/lib/embeddings/vector-codec";
+import fs from "fs";
+import { randomUUID } from "crypto";
 
 describe("upload validation", () => {
   it("sanitizes path-like names", () => {
@@ -96,6 +110,104 @@ describe("embedding client helpers (step 2)", () => {
     const n = l2Normalize([3, 4]);
     expect(Math.hypot(...n)).toBeCloseTo(1, 5);
     expect(cosineSimilarity(n, n)).toBeCloseTo(1, 5);
+  });
+});
+
+describe("embedding vector storage (step 3)", () => {
+  const prevDb = process.env.DATABASE_PATH;
+  const testDb = "data/test-embeddings.db";
+
+  beforeAll(() => {
+    process.env.DATABASE_PATH = testDb;
+    closeDb();
+    try {
+      fs.unlinkSync(testDb);
+    } catch {
+      /* fresh */
+    }
+    ensureDb();
+  });
+
+  afterAll(() => {
+    closeDb();
+    try {
+      fs.unlinkSync(testDb);
+    } catch {
+      /* ignore */
+    }
+    if (prevDb === undefined) delete process.env.DATABASE_PATH;
+    else process.env.DATABASE_PATH = prevDb;
+    closeDb();
+  });
+
+  it("round-trips float32 vectors through the codec", () => {
+    const v = [0.1, -0.25, 0.5, 1];
+    const decoded = decodeVector(encodeVector(v));
+    expect(decoded.length).toBe(4);
+    decoded.forEach((x, i) => expect(x).toBeCloseTo(v[i], 5));
+  });
+
+  it("upserts and reads fact + evidence embeddings", () => {
+    expect(getDbPath()).toContain("test-embeddings");
+    const docId = randomUUID();
+    const factId = randomUUID();
+    const evidenceId = randomUUID();
+
+    insertDocument({
+      id: docId,
+      original_filename: "t.pdf",
+      stored_path: "data/uploads/t.pdf",
+      mime_type: "application/pdf",
+      byte_size: 1,
+      content_hash: randomUUID(),
+      status: "ready",
+    });
+    insertFact({
+      id: factId,
+      document_id: docId,
+      chunk_id: null,
+      claim: "Revenue",
+      raw_value: "100",
+      numeric_value: 100,
+      unit: "crore",
+      period: "FY24",
+      scope: null,
+      entity: "Delhivery",
+      fact_type: "revenue",
+      confidence: 0.9,
+      status: "active",
+      match_key: "delhivery|revenue|crore",
+    });
+    insertEvidence({
+      id: evidenceId,
+      fact_id: factId,
+      document_id: docId,
+      page: 1,
+      quote: "Revenue was 100 crore",
+    });
+
+    const vec = l2Normalize([0.2, 0.3, 0.4, 0.5]);
+    upsertFactEmbedding({
+      factId,
+      model: "Xenova/all-MiniLM-L6-v2",
+      embedding: vec,
+      indexText: "Delhivery | revenue | Revenue | 100 | crore | FY24",
+    });
+    upsertEvidenceEmbedding({
+      evidenceId,
+      model: "Xenova/all-MiniLM-L6-v2",
+      embedding: vec,
+      indexText: "page=1 | Revenue was 100 crore",
+    });
+
+    const factEmb = getFactEmbedding(factId);
+    expect(factEmb?.dimensions).toBe(4);
+    expect(factEmb?.model).toContain("MiniLM");
+    factEmb!.embedding.forEach((x, i) => expect(x).toBeCloseTo(vec[i], 5));
+
+    const evEmb = getEvidenceEmbedding(evidenceId);
+    expect(evEmb?.evidence_id).toBe(evidenceId);
+    expect(listFactEmbeddings("Xenova/all-MiniLM-L6-v2").length).toBeGreaterThanOrEqual(1);
   });
 });
 

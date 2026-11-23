@@ -232,7 +232,8 @@ flowchart LR
 | Provider | **Local free** `Xenova/all-MiniLM-L6-v2` (384-d) via `@huggingface/transformers` |
 | Spaces | Same embedding model for index + query |
 | Similarity | Cosine on L2-normalized vectors |
-| Versioning | Store `embedding_model` + dim; re-embed on bump |
+| Storage | SQLite `fact_embeddings` / `evidence_embeddings` — Float32 little-endian BLOBs ([`vector-codec.ts`](../src/lib/embeddings/vector-codec.ts)); upsert/get/list/delete in [`db/embeddings.ts`](../src/lib/db/embeddings.ts) |
+| Versioning | Store `model` + `dimensions`; re-embed on bump |
 | Filters | SQL/metadata filters **plus** text baked into card |
 
 ---
@@ -380,8 +381,17 @@ erDiagram
   }
   FACT_EMBEDDINGS {
     string fact_id
-    vector embedding
     string model
+    int dimensions
+    blob embedding
+    string index_text
+  }
+  EVIDENCE_EMBEDDINGS {
+    string evidence_id
+    string model
+    int dimensions
+    blob embedding
+    string index_text
   }
   RELATIONS {
     string relation_type
@@ -410,8 +420,13 @@ flowchart LR
     match[match.ts]
   end
   subgraph emb [src/lib/embeddings]
-    embed[embed.ts]
-    store[store.ts]
+    indexText[index-text.ts]
+    client[client.ts]
+    codec[vector-codec.ts]
+  end
+  subgraph dbemb [src/lib/db]
+    migrateEmb[migrate-embeddings.ts]
+    embCrud[embeddings.ts]
   end
   subgraph llm [src/lib/llm]
     groq[groq.ts]
@@ -419,12 +434,12 @@ flowchart LR
   end
 
   parse --> structure --> chunk --> extract
-  extract --> embed
-  embed --> store
+  extract --> indexText --> client
+  client --> codec --> embCrud
+  migrateEmb --> embCrud
   extract --> match
   match --> candidates --> rerank --> classify
   classify --> llm
-  embed --> llm
 ```
 
 ---
