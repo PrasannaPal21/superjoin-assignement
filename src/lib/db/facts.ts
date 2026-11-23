@@ -223,6 +223,26 @@ export function listRelationsByReviewStatus(
     .all(reviewStatus) as RelationRow[];
 }
 
+export function countRelationsByReviewStatus(
+  reviewStatus: ReviewStatus | string,
+): number {
+  ensureDb();
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM relations WHERE review_status = ?`,
+    )
+    .get(reviewStatus) as { n: number };
+  return row.n;
+}
+
+export function countRelationsByType(relationType: string): number {
+  ensureDb();
+  const row = getDb()
+    .prepare(`SELECT COUNT(*) AS n FROM relations WHERE relation_type = ?`)
+    .get(relationType) as { n: number };
+  return row.n;
+}
+
 export function updateRelationReviewStatus(
   id: string,
   reviewStatus: ReviewStatus,

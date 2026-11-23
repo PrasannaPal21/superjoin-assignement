@@ -122,11 +122,24 @@ export function getMatchBatchSize(): number {
 
 /**
  * Low-confidence contradicts below this go to HITL (`needs_review`).
- * Default 0.75.
+ * Default 0.75. Clamped to [0, 1].
  */
 export function getConflictReviewThreshold(): number {
   const n = Number(process.env.CONFLICT_REVIEW_THRESHOLD || "0.75");
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.75;
+}
+
+/** Snapshot of classify / HITL knobs (health + debugging). */
+export function getClassifyConfig(): {
+  matchBatchSize: number;
+  conflictReviewThreshold: number;
+  matchModel: string;
+} {
+  return {
+    matchBatchSize: getMatchBatchSize(),
+    conflictReviewThreshold: getConflictReviewThreshold(),
+    matchModel: getGroqMatchModel(),
+  };
 }
 
 /** cascade (default) | cross_encoder | llm */

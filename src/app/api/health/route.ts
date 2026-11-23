@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getClassifyConfig,
   getEmbeddingCacheDir,
   getEmbeddingDimensions,
   getEmbeddingModel,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/config";
 import { ensureDb } from "@/lib/db";
 import { getDb, getDbPath } from "@/lib/db/client";
+import { countRelationsByReviewStatus } from "@/lib/db/facts";
 import { getGroqApiKey } from "@/lib/llm/groq";
 
 export const runtime = "nodejs";
@@ -48,6 +50,10 @@ export async function GET() {
       rerank: {
         provider: getRerankProvider(),
         ceModel: getRerankCeModel(),
+      },
+      classify: {
+        ...getClassifyConfig(),
+        needsReview: countRelationsByReviewStatus("needs_review"),
       },
     });
   } catch (err) {

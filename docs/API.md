@@ -62,13 +62,17 @@ Returns facts with nested evidence quotes.
 Query params:
 
 - `type` — `corroborates` | `contradicts` | `reconciled`
-- `reviewStatus` — `auto_accepted` | `needs_review` | `confirmed` | `rejected`
+- `reviewStatus` (alias: `review`) — `auto_accepted` | `needs_review` | `confirmed` | `rejected`
 
-Each relation includes side-by-side fact summaries + evidence + `review_status`.
+Response includes:
+
+- `relations[]` with side-by-side fact summaries + evidence + `reviewStatus`
+- `counts` — global tallies (`corroborates` / `contradicts` / `reconciled` / `needsReview`)
+- `conflictReviewThreshold` — current `CONFLICT_REVIEW_THRESHOLD`
 
 ## `POST /api/relations/:id/review`
 
-HITL action for low-confidence conflicts.
+HITL confirm/reject (stage C5 — not shipped yet). Planned body:
 
 ```json
 { "decision": "confirmed" }

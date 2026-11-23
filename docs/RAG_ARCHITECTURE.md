@@ -500,7 +500,8 @@ flowchart LR
 
 **Not in this pipeline (next phases):** Ask generation, HITL confirm/reject UI (C5), GraphRAG.  
 **Rerank:** cascade CE + rare LLM — implemented.  
-**HITL persist (C3):** `review_status` on relations (`needs_review` for weak contradicts).
+**HITL persist (C3):** `review_status` on relations (`needs_review` for weak contradicts).  
+**HITL config (C4):** `CONFLICT_REVIEW_THRESHOLD` via `getConflictReviewThreshold()`; health + relations API expose threshold / `needsReview` counts.
 
 Smoke:
 

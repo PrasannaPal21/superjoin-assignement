@@ -57,7 +57,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 8. **Hybrid recall** — per new fact: `match_key` ∪ BM25 ∪ dense → RRF → soft metadata boosts ([`metadata-filters.ts`](../src/lib/embeddings/metadata-filters.ts): entity/unit/type/period; **never** hard-drop different periods). Caps: `SPARSE_TOP_K` / `DENSE_TOP_K` / `RRF_TOP_N` / `MAX_MATCH_PAIRS`.
 9. **Rerank (cascade)** — local cross-encoder scores all pairs; LLM only on CE mid-band (`CE_LOW`–`CE_HIGH`); blend + keep `RERANK_TOP_M` above `RERANK_MIN_SCORE` ([`rerank.ts`](../src/lib/pipeline/rerank.ts)).
 10. **Classify** — heuristics first, then batched LLM for leftovers ([`classify-relation.ts`](../src/lib/pipeline/classify-relation.ts)): clamped confidence, soft batch parse, journal partial misses (`MATCH_BATCH_SIZE` / `GROQ_MATCH_MODEL`).
-11. **HITL gate** — persist `relations.review_status`; `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review` ([`review-status.ts`](../src/lib/pipeline/review-status.ts)). Confirm/reject UI is stage C5.
+11. **HITL gate** — `getConflictReviewThreshold()` / `getClassifyConfig()`; weak `contradicts` → `needs_review` ([`review-status.ts`](../src/lib/pipeline/review-status.ts)). Exposed on `/api/health` + `/api/relations`. Confirm/reject UI is C5.
 
 ### Query-time (Ask)
 

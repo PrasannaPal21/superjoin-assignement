@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getConflictReviewThreshold } from "@/lib/config";
 import { getDocument } from "@/lib/db/documents";
 import {
+  countRelationsByReviewStatus,
+  countRelationsByType,
   listEvidenceForFact,
   listFacts,
   listRelations,
@@ -33,11 +36,16 @@ function factSummary(id: string) {
 
 export async function GET(req: NextRequest) {
   const type = req.nextUrl.searchParams.get("type") || undefined;
-  const review = req.nextUrl.searchParams.get("review") || undefined;
+  const reviewStatus =
+    req.nextUrl.searchParams.get("reviewStatus") ||
+    req.nextUrl.searchParams.get("review") ||
+    undefined;
+
   let rows = listRelations(type);
-  if (review) {
-    rows = rows.filter((r) => r.review_status === review);
+  if (reviewStatus) {
+    rows = rows.filter((r) => (r.review_status ?? "auto_accepted") === reviewStatus);
   }
+
   const relations = rows.slice(0, 300).map((r) => {
     let contextTags: string[] = [];
     try {
@@ -58,13 +66,17 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // Global counts (not limited to the page slice / active filters).
   const counts = {
-    corroborates: relations.filter((r) => r.relationType === "corroborates").length,
-    contradicts: relations.filter((r) => r.relationType === "contradicts").length,
-    reconciled: relations.filter((r) => r.relationType === "reconciled").length,
-    needsReview: relations.filter((r) => r.reviewStatus === "needs_review")
-      .length,
+    corroborates: countRelationsByType("corroborates"),
+    contradicts: countRelationsByType("contradicts"),
+    reconciled: countRelationsByType("reconciled"),
+    needsReview: countRelationsByReviewStatus("needs_review"),
   };
 
-  return NextResponse.json({ relations, counts });
+  return NextResponse.json({
+    relations,
+    counts,
+    conflictReviewThreshold: getConflictReviewThreshold(),
+  });
 }
