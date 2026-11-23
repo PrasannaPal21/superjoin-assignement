@@ -21,6 +21,8 @@ export type TextChunk = {
   parentId?: string | null;
   /** Section / table title when known (steps 2+). */
   sectionTitle?: string | null;
+  /** For parents (step 4): whether the block was table or narrative. */
+  blockKind?: "narrative" | "table" | null;
 };
 
 function estimateTokens(text: string): number {
@@ -48,6 +50,7 @@ function buildChunk(slice: PdfPage[]): TextChunk {
     kind: "flat",
     parentId: null,
     sectionTitle: null,
+    blockKind: null,
   };
 }
 

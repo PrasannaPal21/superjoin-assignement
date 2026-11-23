@@ -42,8 +42,8 @@ export function persistChunk(
     .prepare(
       `INSERT INTO chunks (
          id, document_id, page_start, page_end, text, token_estimate,
-         kind, parent_id, section_title
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         kind, parent_id, section_title, block_kind
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -55,6 +55,7 @@ export function persistChunk(
       chunk.kind ?? "flat",
       chunk.parentId ?? null,
       chunk.sectionTitle ?? null,
+      chunk.blockKind ?? null,
     );
   return id;
 }

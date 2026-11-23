@@ -36,6 +36,7 @@ export function migrateChunkHierarchy(): void {
       kind TEXT NOT NULL DEFAULT 'flat',
       parent_id TEXT,
       section_title TEXT,
+      block_kind TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
       FOREIGN KEY (parent_id) REFERENCES chunks(id) ON DELETE CASCADE
@@ -48,6 +49,7 @@ export function migrateChunkHierarchy(): void {
   addColumnIfMissing("chunks", "kind", `TEXT NOT NULL DEFAULT 'flat'`);
   addColumnIfMissing("chunks", "parent_id", `TEXT`);
   addColumnIfMissing("chunks", "section_title", `TEXT`);
+  addColumnIfMissing("chunks", "block_kind", `TEXT`);
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_chunks_kind ON chunks(kind);

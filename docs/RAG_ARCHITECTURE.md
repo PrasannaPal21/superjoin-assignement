@@ -147,7 +147,9 @@ flowchart TD
 | Signal prior | Pages with text | `signalScore` per page | KPI/finance density via [`signal.ts`](../src/lib/pdf/signal.ts); TOC/glossary penalized; selects extract budget |
 | Structure segment | High-signal pages | `DocumentSection[]` | Heading heuristics in [`structure.ts`](../src/lib/pdf/structure.ts); inspect via job progress / `scripts/smoke-sections.ts` |
 | Table blocks | Sections | `DocumentBlock` (`table` \| `narrative`) | Number/header heuristics in [`tables.ts`](../src/lib/pdf/tables.ts); inspect via `scripts/smoke-blocks.ts` |
-| Parent–child | Blocks | Parent + children | Steps 4–6 |
+| Parent chunks | Blocks | `chunks.kind=parent` | [`parents.ts`](../src/lib/pdf/parents.ts); stored before flat extract |
+| Child chunks | Parents | `chunks.kind=child` + `parent_id` | Step 5 (next) |
+| Extract on children | Children + parent context | Facts + evidence | Step 6 |
 | Extract | Child + parent ctx | Facts + evidence | Cheaper extract model; Zod + repair |
 | Fact card | Fact row | Canonical string | See §5 |
 | Embed | Fact card / quote | Vectors | Versioned `embedding_model` |

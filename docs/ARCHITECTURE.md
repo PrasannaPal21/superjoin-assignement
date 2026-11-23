@@ -46,20 +46,21 @@ Local default: SQLite with a vector extension. Schema maps cleanly to Postgres +
 1. **Validate & store** — extension, MIME, magic bytes, size cap, SHA-256 dedupe.
 2. **Parse + local OCR** — pdf.js per-page text; sparse/image pages → rasterize → **Tesseract.js** (no LLM tokens). Journal only if text is still unusable after OCR.
 3. **Signal prior** — score each page for finance/KPI density ([`signal.ts`](../src/lib/pdf/signal.ts)); drop TOC/glossary; keep top pages under extract budget. Budget only — not section boundaries.
-4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)). Parent/child emit comes next; packing is still `flat` until then.
-5. **Extract** — Groq JSON on current flat packs (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk. Will move to children + parent context in later chunking steps.
-6. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
+4. **Structure (sections + blocks)** — detect finance headings ([`structure.ts`](../src/lib/pdf/structure.ts)), then split each section into **table** vs **narrative** blocks ([`tables.ts`](../src/lib/pdf/tables.ts)).
+5. **Parent chunks** — persist each block as `kind=parent` ([`parents.ts`](../src/lib/pdf/parents.ts)) with `section_title` + `block_kind`. Context only for now; children + extract-on-children come next.
+6. **Extract** — Groq JSON on current **flat** packs (`GROQ_EXTRACT_MODEL`); Zod + JSON repair; ~12 facts / chunk. Will move to children + parent context in steps 5–6.
+7. **Index** — `match_key`; sparse tokens; embed fact cards + evidence quotes.
 
 ### Query-time (Compare)
 
-7. **Hybrid recall** — exact `match_key` ∪ BM25 ∪ dense top-K; metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
-8. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
-9. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
-10. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
+8. **Hybrid recall** — exact `match_key` ∪ BM25 ∪ dense top-K; metadata soft filters; **RRF** fusion; cap `RERANK_TOP_N`.
+9. **Rerank** — LLM scores pair relevance `0–1`; keep `RERANK_TOP_M`; drop below `RERANK_MIN_SCORE`.
+10. **Classify** — heuristics for clear numeric/period cases; batched LLM otherwise (`MATCH_BATCH_SIZE`).
+11. **HITL gate** — `contradicts` with confidence &lt; `CONFLICT_REVIEW_THRESHOLD` → `needs_review`.
 
 ### Query-time (Ask)
 
-11. Embed question → hybrid retrieve facts/evidence → RRF → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
+12. Embed question → hybrid retrieve facts/evidence → RRF → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
 
 New documents match **against existing facts only**. Older documents are not re-extracted on every ingest.
 

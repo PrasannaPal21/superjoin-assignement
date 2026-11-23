@@ -13,6 +13,7 @@ import { chunkPages } from "@/lib/pdf/chunk";
 import { extractPdfPages } from "@/lib/pdf/parse";
 import { applyPageSignals } from "@/lib/pdf/signal";
 import { summarizeSections } from "@/lib/pdf/structure";
+import { parentChunksFromBlocks } from "@/lib/pdf/parents";
 import {
   detectBlocksFromDocument,
   summarizeBlocks,
@@ -90,6 +91,14 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       0,
       1,
     );
+
+    // Step 4: persist parent chunks (context). Extract still runs on flat packs until step 6.
+    updateJobProgress(jobId, "persisting parent chunks", 0, 1);
+    const parents = parentChunksFromBlocks(blocks);
+    for (const parent of parents) {
+      persistChunk(documentId, parent);
+    }
+    updateJobProgress(jobId, `stored ${parents.length} parent chunks`, 0, 1);
 
     // OCR success is normal — do not journal. Only fail when text is still unusable.
     if (parsed.emptyPageCount > parsed.pages.length * 0.8) {

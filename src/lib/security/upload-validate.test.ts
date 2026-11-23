@@ -18,6 +18,7 @@ import {
   isSectionHeading,
   linesFromPageText,
 } from "@/lib/pdf/structure";
+import { parentChunksFromBlocks } from "@/lib/pdf/parents";
 import {
   detectBlocksFromSections,
   isTableLine,
@@ -193,6 +194,32 @@ describe("table block detection (step 3)", () => {
     const table = blocks.find((b) => b.kind === "table");
     expect(table?.text).toMatch(/Revenue from operations/);
     expect(table?.text).toMatch(/EBITDA/);
+  });
+});
+
+describe("parent chunks (step 4)", () => {
+  it("emits kind=parent chunks from table/narrative blocks", () => {
+    const sections = detectSections([
+      {
+        pageNumber: 2,
+        text: [
+          "Financial Highlights",
+          "Intro prose for the highlights section.",
+          "Particulars  FY23  FY24",
+          "Revenue from operations  3,000.00  4,815.04",
+        ].join("\n"),
+        signalScore: 5,
+      },
+    ]);
+    const blocks = detectBlocksFromSections(sections);
+    const parents = parentChunksFromBlocks(blocks);
+    expect(parents.length).toBeGreaterThanOrEqual(1);
+    expect(parents.every((p) => p.kind === "parent")).toBe(true);
+    expect(parents.every((p) => p.parentId == null)).toBe(true);
+    expect(parents.some((p) => p.blockKind === "table")).toBe(true);
+    expect(parents.some((p) => /financial highlights/i.test(p.sectionTitle || ""))).toBe(
+      true,
+    );
   });
 });
 
