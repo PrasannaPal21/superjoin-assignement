@@ -237,7 +237,7 @@ function HeroEmptyState() {
           {[
             ["Drop PDFs anywhere", "Drag files onto the page or use the panel on the left"],
             ["Watch extraction", "Progress updates live as facts are pulled"],
-            ["Explore & compare", "Verify claims, spot conflicts across documents"],
+            ["Explore, compare & ask", "Verify claims, spot conflicts, ask with citations"],
           ].map(([title, desc], i) => (
             <li key={title} className="flex items-start gap-3">
               <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">

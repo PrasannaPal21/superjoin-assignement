@@ -26,6 +26,7 @@ type Cases = {
   corroborates: unknown;
   contradicts: unknown;
   reconciled: unknown;
+  ask: unknown;
   failure: unknown;
 };
 
@@ -42,6 +43,7 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [cases, setCases] = useState<Cases | null>(null);
   const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewHint, setReviewHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -66,12 +68,14 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
     { label: "Agrees comparison", desc: "Two documents confirming the same fact", ok: Boolean(cases?.corroborates) },
     { label: "Conflicts comparison", desc: "Two documents disagreeing on a value", ok: Boolean(cases?.contradicts) },
     { label: "Different-context comparison", desc: "Apparent conflict resolved by time, scope, or units", ok: Boolean(cases?.reconciled) },
+    { label: "Ask with citations", desc: "Evidence index ready for grounded Ask (or honest refuse)", ok: Boolean(cases?.ask) },
     { label: "Pipeline failure logged", desc: "The system records what broke and why", ok: Boolean(cases?.failure) || failures.length > 0 },
   ];
   const passed = checks.filter((c) => c.ok).length;
 
   async function reviewRelation(id: string, decision: "confirmed" | "rejected") {
     setReviewingId(id);
+    setReviewHint(null);
     try {
       const res = await fetch(`/api/relations/${id}/review`, {
         method: "POST",
@@ -80,12 +84,14 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Review failed");
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Review failed",
+        );
       }
       await load();
       window.dispatchEvent(new Event("fkl-refresh"));
-    } catch {
-      /* keep queue; Compare tab shows errors via hint */
+    } catch (err) {
+      setReviewHint(err instanceof Error ? err.message : "Review failed");
     } finally {
       setReviewingId(null);
     }
@@ -132,7 +138,7 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
           ))}
         </ul>
         <p className="border-t border-border bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground">
-          These appear as you process documents — check the Compare tab for the evidence pairs.
+          These appear as you process documents — check Compare for pairs and Ask for cited answers.
         </p>
       </section>
 
@@ -146,6 +152,11 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             {reviewQueue.length} pending
           </span>
         </div>
+        {reviewHint && (
+          <p className="border-b border-danger/20 bg-danger-soft px-4 py-2 text-xs text-danger">
+            {reviewHint}
+          </p>
+        )}
         <ul className="max-h-[520px] divide-y divide-border/70 overflow-auto">
           {reviewQueue.length === 0 && (
             <li className="px-4 py-12 text-center">
