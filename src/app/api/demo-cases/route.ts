@@ -28,8 +28,16 @@ function enrich(factId: string) {
   };
 }
 
+/** Prefer published relations; skip HITL-rejected pairs. */
+function isDemoRelation(row: {
+  review_status?: string | null;
+}): boolean {
+  const status = row.review_status ?? "auto_accepted";
+  return status === "auto_accepted" || status === "confirmed";
+}
+
 export async function GET() {
-  const relations = listRelations();
+  const relations = listRelations().filter(isDemoRelation);
   const pick = (type: string) => {
     const row = relations.find((r) => r.relation_type === type);
     if (!row) return null;
@@ -45,26 +53,38 @@ export async function GET() {
       rationale: row.rationale,
       contextTags,
       confidence: row.confidence,
+      reviewStatus: row.review_status ?? "auto_accepted",
       a: enrich(row.fact_a_id),
       b: enrich(row.fact_b_id),
     };
   };
 
-  const failure = listFailures()[0]
+  const failures = listFailures();
+  const failure = failures[0]
     ? {
-        id: listFailures()[0].id,
-        stage: listFailures()[0].stage,
-        summary: listFailures()[0].summary,
-        detail: listFailures()[0].detail,
-        suggestion: listFailures()[0].suggestion,
+        id: failures[0].id,
+        stage: failures[0].stage,
+        summary: failures[0].summary,
+        detail: failures[0].detail,
+        suggestion: failures[0].suggestion,
       }
     : null;
+
+  const evidenceReady = listFacts().some(
+    (f) => listEvidenceForFact(f.id).length > 0,
+  );
 
   return NextResponse.json({
     cases: {
       corroborates: pick("corroborates"),
       contradicts: pick("contradicts"),
       reconciled: pick("reconciled"),
+      ask: evidenceReady
+        ? {
+            ready: true,
+            hint: "Open Ask and query a KPI; answers must cite page + quote (or refuse).",
+          }
+        : null,
       failure,
     },
   });
