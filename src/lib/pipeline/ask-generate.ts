@@ -100,6 +100,7 @@ export function remapCitationsFromPack(
       page: item.page,
       quote: item.quote,
       evidenceId: item.evidenceId,
+      documentName: item.documentName,
     });
   }
   return citations;

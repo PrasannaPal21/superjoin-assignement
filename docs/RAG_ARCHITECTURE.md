@@ -511,7 +511,7 @@ flowchart LR
 | A3 | Context pack + refuse gate | done | [`ask-context.ts`](../src/lib/pipeline/ask-context.ts) |
 | A4 | Grounded generate (Groq JSON + citations) | done | [`ask-generate.ts`](../src/lib/pipeline/ask-generate.ts) |
 | A5 | `askQuestion` + `POST /api/ask` | done | [`ask.ts`](../src/lib/pipeline/ask.ts), [`api/ask`](../src/app/api/ask/route.ts) |
-| A6 | Ask UI tab | pending | — |
+| A6 | Ask UI tab | done | [`ask-panel.tsx`](../src/components/ask-panel.tsx) |
 | A7 | Fixtures + smoke | pending | — |
 
 ### Classify / HITL checklist (C1–C6)

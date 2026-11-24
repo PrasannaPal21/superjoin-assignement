@@ -214,6 +214,7 @@ export function citationsFromPack(pack: AskContextPack): AskCitation[] {
     page: item.page,
     quote: item.quote,
     evidenceId: item.evidenceId,
+    documentName: item.documentName,
   }));
 }
 

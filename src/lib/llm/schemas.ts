@@ -38,6 +38,7 @@ export const AskCitationSchema = z.object({
   page: z.number().int().positive().nullable().optional(),
   quote: z.string().min(1),
   evidenceId: z.string().min(1).optional(),
+  documentName: z.string().nullable().optional(),
 });
 
 export type AskCitation = z.infer<typeof AskCitationSchema>;

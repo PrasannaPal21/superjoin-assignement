@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { DocumentSidebar } from "@/components/document-sidebar";
 import { FactBrowser } from "@/components/fact-browser";
 import { RelationPanel } from "@/components/relation-panel";
+import { AskPanel } from "@/components/ask-panel";
 import { IssuesPanel } from "@/components/issues-panel";
 import NumberFlow from "@number-flow/react";
 import {
@@ -15,10 +16,11 @@ import {
   FileStack,
   GitCompareArrows,
   Layers,
+  MessageCircleQuestion,
   TriangleAlert,
 } from "lucide-react";
 
-type Tab = "facts" | "compare" | "issues";
+type Tab = "facts" | "compare" | "ask" | "issues";
 
 type DocumentDto = {
   id: string;
@@ -155,9 +157,10 @@ export function AppShell() {
           <div className="flex shrink-0 items-center gap-1 border-b border-border bg-card px-4">
             {(
               [
-                ["facts", "Facts", <FileStack key="i1" className="size-4" />, counts.facts],
-                ["compare", "Compare", <GitCompareArrows key="i2" className="size-4" />, counts.relations],
-                ["issues", "Issues", <AlertTriangle key="i3" className="size-4" />, counts.failures],
+                ["facts", "Facts", <FileStack key="i1" className="size-4" />, counts.facts as number | null],
+                ["compare", "Compare", <GitCompareArrows key="i2" className="size-4" />, counts.relations as number | null],
+                ["ask", "Ask", <MessageCircleQuestion key="i3" className="size-4" />, null],
+                ["issues", "Issues", <AlertTriangle key="i4" className="size-4" />, counts.failures as number | null],
               ] as const
             ).map(([id, label, icon, n]) => (
               <button
@@ -173,14 +176,16 @@ export function AppShell() {
               >
                 {icon}
                 {label}
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular",
-                    tab === id ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  <NumberFlow value={n} />
-                </span>
+                {n != null && (
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular",
+                      tab === id ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <NumberFlow value={n} />
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -203,6 +208,7 @@ export function AppShell() {
                   />
                 )}
                 {tab === "compare" && <RelationPanel refreshKey={refreshKey} />}
+                {tab === "ask" && <AskPanel refreshKey={refreshKey} />}
                 {tab === "issues" && <IssuesPanel refreshKey={refreshKey} />}
               </>
             )}

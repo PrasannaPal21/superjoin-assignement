@@ -74,4 +74,4 @@ New documents match **against existing facts only**. Older documents are not re-
 
 ## UI
 
-Document rail + **Facts** / **Compare** / **Ask** / **Issues** (demo coverage, HITL review, pipeline log).
+Document rail + **Facts** / **Compare** / **Ask** / **Issues** (demo coverage, grounded Ask, HITL review, pipeline log).
