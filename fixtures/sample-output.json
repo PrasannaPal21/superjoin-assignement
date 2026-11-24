@@ -22,12 +22,12 @@
   ],
   "facts": [
     {
-      "id": "f1",
+      "id": "f-rev-fy21",
       "documentId": "doc-prospectus",
-      "claim": "Company reported revenue from operations for Fiscal 2021",
+      "claim": "Revenue from operations for Fiscal 2021",
       "rawValue": "4815.04",
-      "unit": "INR crore",
-      "period": "Fiscal 2021",
+      "unit": "crore",
+      "period": "FY21",
       "scope": "consolidated",
       "entity": "Delhivery Limited",
       "factType": "revenue",
@@ -40,55 +40,159 @@
       ]
     },
     {
-      "id": "f2",
+      "id": "f-rev-fy24-ar",
       "documentId": "doc-ar",
-      "claim": "Network covered pin codes as of reporting date",
-      "rawValue": "18500+",
-      "unit": "pin codes",
+      "claim": "Revenue from operations for FY24",
+      "rawValue": "8143",
+      "unit": "crore",
       "period": "FY24",
-      "scope": "network",
+      "scope": "consolidated",
       "entity": "Delhivery",
-      "factType": "network_coverage",
-      "confidence": 0.8,
+      "factType": "revenue",
+      "confidence": 0.9,
       "evidence": [
         {
-          "page": 8,
-          "quote": "pin codes"
+          "page": 12,
+          "quote": "Revenue from operations 8,143 crore"
+        }
+      ]
+    },
+    {
+      "id": "f-rev-fy24-earn",
+      "documentId": "doc-earn",
+      "claim": "Top-line revenue reported for FY24",
+      "rawValue": "8143",
+      "unit": "crore",
+      "period": "FY24",
+      "scope": "consolidated",
+      "entity": "Delhivery",
+      "factType": "revenue",
+      "confidence": 0.88,
+      "evidence": [
+        {
+          "page": 4,
+          "quote": "Revenue ₹8,143 Cr"
         }
       ]
     }
   ],
   "relations": [
     {
-      "id": "r1",
+      "id": "r-agrees",
       "relationType": "corroborates",
-      "rationale": "Both documents describe the same corporate entity and logistics network identity with consistent naming.",
-      "contextTags": ["entity"],
-      "confidence": 0.78,
-      "a": { "id": "f1", "claim": "…" },
-      "b": { "id": "f2", "claim": "…" }
+      "rationale": "Same FY24 revenue figure across AR and earnings materials.",
+      "contextTags": [],
+      "confidence": 0.9,
+      "reviewStatus": "auto_accepted",
+      "a": {
+        "id": "f-rev-fy24-ar",
+        "claim": "Revenue from operations for FY24",
+        "rawValue": "8143",
+        "unit": "crore",
+        "period": "FY24",
+        "documentName": "02-delhivery-annual-report-fy24-excerpt.pdf",
+        "evidence": { "page": 12, "quote": "Revenue from operations 8,143 crore" }
+      },
+      "b": {
+        "id": "f-rev-fy24-earn",
+        "claim": "Top-line revenue reported for FY24",
+        "rawValue": "8143",
+        "unit": "crore",
+        "period": "FY24",
+        "documentName": "03-delhivery-q4-fy24-earnings-presentation.pdf",
+        "evidence": { "page": 4, "quote": "Revenue ₹8,143 Cr" }
+      }
     },
     {
-      "id": "r2",
+      "id": "r-reconciled",
       "relationType": "reconciled",
-      "rationale": "Numeric KPIs differ because reporting periods and metric definitions are not aligned.",
-      "contextTags": ["time", "scope"],
-      "confidence": 0.74
+      "rationale": "Different FY explains the numeric gap (FY21 vs FY24).",
+      "contextTags": ["time"],
+      "confidence": 0.82,
+      "reviewStatus": "auto_accepted",
+      "a": {
+        "id": "f-rev-fy21",
+        "claim": "Revenue from operations for Fiscal 2021",
+        "rawValue": "4815.04",
+        "unit": "crore",
+        "period": "FY21",
+        "documentName": "01-delhivery-prospectus-2022-excerpt.pdf",
+        "evidence": { "page": 30, "quote": "Revenue from operations … Fiscal 2021" }
+      },
+      "b": {
+        "id": "f-rev-fy24-ar",
+        "claim": "Revenue from operations for FY24",
+        "rawValue": "8143",
+        "unit": "crore",
+        "period": "FY24",
+        "documentName": "02-delhivery-annual-report-fy24-excerpt.pdf",
+        "evidence": { "page": 12, "quote": "Revenue from operations 8,143 crore" }
+      }
     },
     {
-      "id": "r3",
+      "id": "r-conflicts",
       "relationType": "contradicts",
-      "rationale": "Likely conflict when comparing a point-in-time role or figure without adjusting for later events.",
-      "contextTags": ["time"],
-      "confidence": 0.62
+      "rationale": "Same period/unit/scope with conflicting numeric values (illustrative).",
+      "contextTags": [],
+      "confidence": 0.55,
+      "reviewStatus": "needs_review",
+      "a": {
+        "id": "f-rev-fy24-ar",
+        "claim": "Revenue from operations for FY24",
+        "rawValue": "8143",
+        "unit": "crore",
+        "period": "FY24",
+        "documentName": "02-delhivery-annual-report-fy24-excerpt.pdf",
+        "evidence": { "page": 12, "quote": "Revenue from operations 8,143 crore" }
+      },
+      "b": {
+        "id": "f-alt",
+        "claim": "Alternate FY24 revenue print",
+        "rawValue": "7200",
+        "unit": "crore",
+        "period": "FY24",
+        "documentName": "illustrative-conflict.pdf",
+        "evidence": { "page": 2, "quote": "Revenue 7,200 crore" }
+      }
     }
   ],
+  "ask": {
+    "question": "What revenue figures appear across these documents?",
+    "refused": false,
+    "answer": "FY24 revenue from operations is reported as 8,143 crore in the annual report and earnings materials; an earlier Fiscal 2021 figure of 4,815.04 crore appears in the prospectus.",
+    "confidence": 0.86,
+    "citations": [
+      {
+        "factId": "f-rev-fy24-ar",
+        "documentId": "doc-ar",
+        "documentName": "02-delhivery-annual-report-fy24-excerpt.pdf",
+        "page": 12,
+        "quote": "Revenue from operations 8,143 crore",
+        "evidenceId": "e-ar-12"
+      },
+      {
+        "factId": "f-rev-fy21",
+        "documentId": "doc-prospectus",
+        "documentName": "01-delhivery-prospectus-2022-excerpt.pdf",
+        "page": 30,
+        "quote": "Revenue from operations … Fiscal 2021",
+        "evidenceId": "e-pro-30"
+      }
+    ],
+    "stats": {
+      "retrieved": 6,
+      "reranked": 3,
+      "packed": 2,
+      "bestScore": 0.91,
+      "refusedAt": null
+    }
+  },
   "failures": [
     {
       "stage": "parse",
-      "summary": "Some pages yielded little extractable text",
-      "detail": "Layout-heavy slides or image regions produce sparse pdf.js output.",
-      "suggestion": "Add an OCR lane for low-text pages."
+      "summary": "Some pages still had little text after local OCR",
+      "detail": "Layout-heavy slides or image regions can remain sparse after pdf.js + Tesseract.",
+      "suggestion": "Check OCR_ENABLED=true, raise OCR_MAX_PAGES / OCR_RENDER_SCALE for scans, or supply a clearer text-layer PDF."
     }
   ]
 }
