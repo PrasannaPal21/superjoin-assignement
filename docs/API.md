@@ -85,8 +85,7 @@ or `{ "decision": "rejected" }`.
 
 ## `POST /api/ask`
 
-Classical grounded Ask over the hybrid index.  
-*(Route lands in A5; response shape locked in A1 via `AskAnswerSchema`.)*
+Classical grounded Ask over the hybrid index (`askQuestion`: retrieve → CE rerank → gate → generate).
 
 ```json
 { "question": "What revenue figures appear across documents?" }
