@@ -225,6 +225,25 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
       }
     }
 
+    if (factCount === 0) {
+      insertFailure({
+        id: randomUUID(),
+        document_id: documentId,
+        stage: "extract",
+        summary: "Extraction produced zero facts",
+        detail: `All ${selected.length} selected children failed or returned empty fact sets.`,
+        suggestion: suggestionForError(
+          "extract",
+          "Extraction produced zero facts",
+        ),
+      });
+      updateDocumentStatus(documentId, "failed", {
+        error_message: "Extraction produced zero facts",
+      });
+      failJob(jobId, "Extraction produced zero facts");
+      return;
+    }
+
     updateJobProgress(jobId, "matching", 0, 1);
     try {
       await matchNewDocumentFacts(documentId);
@@ -250,6 +269,14 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
     completeJob(jobId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "processing failed";
+    insertFailure({
+      id: randomUUID(),
+      document_id: documentId,
+      stage: "parse",
+      summary: "Document processing aborted",
+      detail: message,
+      suggestion: suggestionForError("parse", message),
+    });
     updateDocumentStatus(documentId, "failed", { error_message: message });
     failJob(jobId, message);
   }
