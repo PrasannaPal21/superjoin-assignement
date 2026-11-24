@@ -512,7 +512,7 @@ flowchart LR
 | A4 | Grounded generate (Groq JSON + citations) | done | [`ask-generate.ts`](../src/lib/pipeline/ask-generate.ts) |
 | A5 | `askQuestion` + `POST /api/ask` | done | [`ask.ts`](../src/lib/pipeline/ask.ts), [`api/ask`](../src/app/api/ask/route.ts) |
 | A6 | Ask UI tab | done | [`ask-panel.tsx`](../src/components/ask-panel.tsx) |
-| A7 | Fixtures + smoke | pending | — |
+| A7 | Fixtures + smoke | done | [`ask-fixtures.ts`](../src/lib/pipeline/ask-fixtures.ts), `npm run smoke:ask` |
 
 ### Classify / HITL checklist (C1–C6)
 
@@ -531,6 +531,7 @@ Smoke:
 npm test
 npm run smoke:hybrid     # offline hybrid recall fixture
 npm run smoke:classify   # offline Agrees/Conflicts/Reconciled/Unrelated + HITL goldens
+npm run smoke:ask        # offline Ask refuse/cite goldens (mocked CE + Groq)
 npm run smoke:embed      # optional live MiniLM download
 ```
 

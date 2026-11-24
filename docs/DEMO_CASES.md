@@ -20,7 +20,7 @@ After the three starter PDFs are **Ready**, use the live UI — nothing is hard-
 
 **Issues → “What you can demonstrate”** shows a live checklist (`yes` / `not yet`) from `GET /api/demo-cases`.
 
-Also show **Ask** once: e.g. “What revenue or EBITDA figures appear across these documents?” — answer must include citations (page + quote).
+Also show **Ask** once: e.g. “What revenue or EBITDA figures appear across these documents?” — answer must include citations (page + quote). Offline Ask goldens: `npm run smoke:ask`.
 
 If a category is still `not yet`, wait for matching/rerank to finish or retry after rate limits cool down. Do not invent examples.
 
