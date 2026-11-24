@@ -509,7 +509,7 @@ flowchart LR
 | A1 | Ask config + citation/answer Zod schemas | done | [`config.ts`](../src/lib/config.ts) `getAskConfig`, [`schemas.ts`](../src/lib/llm/schemas.ts) |
 | A2 | Rerank evidence (CE on question↔quote) | done | [`ask-rerank.ts`](../src/lib/pipeline/ask-rerank.ts) |
 | A3 | Context pack + refuse gate | done | [`ask-context.ts`](../src/lib/pipeline/ask-context.ts) |
-| A4 | Grounded generate (Groq JSON + citations) | pending | — |
+| A4 | Grounded generate (Groq JSON + citations) | done | [`ask-generate.ts`](../src/lib/pipeline/ask-generate.ts) |
 | A5 | `askQuestion` + `POST /api/ask` | pending | — |
 | A6 | Ask UI tab | pending | — |
 | A7 | Fixtures + smoke | pending | — |
