@@ -13,7 +13,8 @@
     "smoke:embed": "npx tsx scripts/smoke-embed.ts",
     "smoke:hybrid": "npx tsx scripts/smoke-hybrid.ts",
     "smoke:classify": "npx tsx scripts/smoke-classify.ts",
-    "smoke:ask": "npx tsx scripts/smoke-ask.ts"
+    "smoke:ask": "npx tsx scripts/smoke-ask.ts",
+    "eval": "npx tsx scripts/eval.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2",
