@@ -18,7 +18,7 @@ After the three starter PDFs are **Ready**, use the live UI — nothing is hard-
 | Apparent conflict explained by context | **Compare** → filter **Different context** (tags like `time`, `scope`, `units`) |
 | Extraction / reasoning failure | **Issues** → Pipeline log |
 
-**Issues → “What you can demonstrate”** shows a live checklist (`yes` / `not yet`) from `GET /api/demo-cases`.
+**Issues → “Demo readiness”** shows a live checklist (`ready` / `pending`) from `GET /api/demo-cases` (Compare cases + Ask evidence + failure journal).
 
 Also show **Ask** once: e.g. “What revenue or EBITDA figures appear across these documents?” — answer must include citations (page + quote). Offline Ask goldens: `npm run smoke:ask`.
 

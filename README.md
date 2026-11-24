@@ -12,7 +12,7 @@ General-purpose pipeline: no hard-coded company facts, filenames, or schemas. Bu
 |--|--|
 | **Family** | Classical Hybrid RAG |
 | **Retrieve** | `match_key` + BM25/lexical + dense embeddings → RRF |
-| **Rank** | LLM reranker → top-M pairs / passages |
+| **Rank** | Cascade CE (rare LLM mid-band) → top-M pairs / passages |
 | **Chunking** | Structure-aware **parent–child** (sections/tables → KPI spans) |
 | **Not used** | GraphRAG, Agentic / Self / Corrective RAG, HyDE, Adaptive, Multimodal RAG |
 
@@ -60,8 +60,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 curl http://localhost:3000/api/health   # llm + embeddings configured
-npm test                                # unit tests (incl. hybrid pipeline smoke)
-npm run smoke:hybrid                    # offline hybrid recall fixture (no model download)
+npm test                                # unit tests (incl. hybrid / ask / classify)
+npm run eval                            # offline hybrid + classify + ask smokes
+npm run smoke:hybrid                    # offline hybrid recall fixture
+npm run smoke:classify                  # offline relation goldens
+npm run smoke:ask                       # offline Ask refuse/cite goldens
 npm run smoke:embed                     # optional live MiniLM embed check
 ```
 
@@ -143,9 +146,9 @@ Single **Next.js** app (UI + API) with disk uploads, SQLite knowledge store, and
 1. **Structure-aware parent–child chunking** (signal prioritizes pages; sections/blocks → parents → children)
 2. **Groq structured extract on children** (+ parent context) → facts + evidence
 3. **Dual embeddings** — fact cards for Compare; evidence quotes for Ask
-4. **Hybrid recall** (`match_key` + BM25 + dense) → **RRF** → **LLM rerank**
+4. **Hybrid recall** (`match_key` + BM25 + dense) → **RRF** → **cascade CE** (rare LLM mid-band)
 5. **Classify** — heuristics first; batched LLM for ambiguous pairs; HITL on weak conflicts
-6. **Ask** — same hybrid index → grounded generation with mandatory citations
+6. **Ask** — evidence hybrid → CE rerank → grounded generation with mandatory citations
 
 More detail: [RAG architecture](docs/RAG_ARCHITECTURE.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) · [API](docs/API.md) · [SECURITY](docs/SECURITY.md) · [SCALABILITY](docs/SCALABILITY.md)
 
@@ -164,13 +167,13 @@ More detail: [RAG architecture](docs/RAG_ARCHITECTURE.md) · [ARCHITECTURE](docs
 ### Trade-offs
 
 - Scanned pages use **local Tesseract OCR** (no Groq tokens); complex table scans may still be noisy vs text-layer PDFs.
-- LLM reranker is flexible and dependency-light; a dedicated cross-encoder can replace it behind the same interface.
+- Default rerank is **local CE** (`RERANK_PROVIDER=cascade`); LLM only scores the CE mid-band.
 - In-process workers are simple for the assignment; multi-instance production should externalize the queue ([SCALABILITY](docs/SCALABILITY.md)).
 
 ### AI tools used
 
-- **Groq** for extract, relation classify, rerank, and Ask (`gpt-oss-20b` / `gpt-oss-120b` by role).
-- **Embedding model** (OpenAI-compatible) for fact cards and evidence.
+- **Groq** for extract, relation classify, rare mid-band rerank, and Ask (`gpt-oss-20b` / `gpt-oss-120b` by role).
+- **Local MiniLM** embeddings + **ms-marco MiniLM** cross-encoder via Transformers.js (default; optional HTTP embeddings).
 - Coding assistants (Cursor) during implementation.
 - Offline shape sample: [fixtures/sample-output.json](fixtures/sample-output.json).
 
@@ -178,7 +181,7 @@ More detail: [RAG architecture](docs/RAG_ARCHITECTURE.md) · [ARCHITECTURE](docs
 
 **Constraints:** OCR quality on dense finance tables; messy table reading order; co-reference across distant pages; embedding/Groq rate limits.
 
-**Follow-ons:** stronger table OCR (PaddleOCR/Docling), cross-encoder rerank swap, Postgres + pgvector + Redis workers, exportable audit packs, stronger golden eval coverage.
+**Follow-ons:** stronger table OCR (PaddleOCR/Docling), Postgres + pgvector + Redis workers, exportable audit packs, broader live-PDF golden evals.
 
 ## Additional Notes
 

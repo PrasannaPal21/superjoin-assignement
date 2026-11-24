@@ -35,7 +35,7 @@ Form: https://forms.gle/3fLdBQ2D6Zm2Gqtv7
 4. **Optional but strong**
    - Live deploy URL in README Additional Notes ([`DEPLOY.md`](DEPLOY.md))
    - Sample output in `fixtures/sample-output.json` if reviewers lack API keys
-   - `npm run eval` report for recall / relation quality
+   - `npm run eval` (runs offline hybrid + classify + ask smokes)
 
 ## Day-of checklist
 

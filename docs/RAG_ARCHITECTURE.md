@@ -195,7 +195,7 @@ Table children keep **row label + period columns + values** together so period/s
 
 Index text builders: [`index-text.ts`](../src/lib/embeddings/index-text.ts).  
 Index-time embed after extract: [`index-document.ts`](../src/lib/embeddings/index-document.ts) (facts + evidence; skip/re-embed on model bump).  
-Evidence Ask prep: sparse postings + [`hybridRetrieveEvidence`](../src/lib/embeddings/hybrid-ask.ts) (citation-ready hits; generation later).
+Evidence Ask prep: sparse postings + [`hybridRetrieveEvidence`](../src/lib/embeddings/hybrid-ask.ts) → CE rerank → grounded generate (A0–A7).
 
 ### Fact card template (Compare / matching)
 
@@ -539,6 +539,6 @@ npm run smoke:embed      # optional live MiniLM download
 
 ## 12. Interview one-liner
 
-> “This is a **classical hybrid RAG** over a fact ledger: structure-aware parent–child indexing, dual embeddings (fact cards + evidence), hybrid sparse+dense retrieval with RRF, LLM reranking, then either three-way relation classification or citation-grounded Ask — not GraphRAG and not agentic RAG.”
+> “This is a **classical hybrid RAG** over a fact ledger: structure-aware parent–child indexing, dual embeddings (fact cards + evidence), hybrid sparse+dense retrieval with RRF, cascade CE rerank (rare LLM mid-band), then either three-way relation classification or citation-grounded Ask — not GraphRAG and not agentic RAG.”
 
 Related: [ARCHITECTURE.md](ARCHITECTURE.md) · [SCALABILITY.md](SCALABILITY.md) · [DEMO_CASES.md](DEMO_CASES.md) · [API.md](API.md)

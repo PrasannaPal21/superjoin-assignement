@@ -26,6 +26,7 @@ Document text and retrieved evidence may contain adversarial instructions.
 - System prompts treat excerpt / evidence as **data**, not commands.
 - Control characters are stripped; long excerpts truncated before prompting.
 - Ask generation is instructed to answer **only** from the supplied context pack and to refuse when unsupported.
+- `POST /api/ask` is rate-limited (token bucket) like upload to protect Groq spend.
 - Structured outputs (facts, relations, rerank scores) are schema-validated — free-form model text is not executed.
 
 ## Retrieval & publish safety

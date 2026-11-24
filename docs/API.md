@@ -11,15 +11,19 @@ Liveness + DB + model configuration.
 ```json
 {
   "ok": true,
+  "alive": true,
   "service": "fact-knowledge-layer",
   "dbPath": "data/factlayer.db",
   "dbTime": "...",
-  "llm": { "configured": true },
-  "embeddings": { "configured": true }
+  "llm": { "configured": true, "model": "..." },
+  "embeddings": { "configured": true, "provider": "local", "model": "..." },
+  "rerank": { "provider": "cascade", "ceModel": "..." },
+  "classify": { "matchBatchSize": 6, "conflictReviewThreshold": 0.75, "needsReview": 0 },
+  "ask": { "askModel": "...", "refuseMinScore": 0.4, "refuseMinHits": 1 }
 }
 ```
 
-`ok` is true when the database is reachable and required LLM/embedding credentials are present.
+`ok` is true when `GROQ_API_KEY` is set (embeddings default to free local MiniLM and do not gate `ok`). `alive` is true when the DB query succeeds.
 
 ## `POST /api/upload`
 
@@ -100,25 +104,37 @@ Classical grounded Ask over the hybrid index (`askQuestion`: retrieve → CE rer
     {
       "factId": "...",
       "documentId": "...",
+      "documentName": "...",
       "page": 12,
       "quote": "...",
       "evidenceId": "..."
     }
   ],
   "refused": false,
-  "confidence": 0.82
+  "reason": null,
+  "confidence": 0.82,
+  "stats": {
+    "retrieved": 12,
+    "reranked": 6,
+    "rerankFallback": false,
+    "packed": 4,
+    "bestScore": 0.91,
+    "refusedAt": null
+  }
 }
 ```
 
-When retrieval confidence is low: `{ "refused": true, "reason": "...", "citations": [] }`.
+When retrieval confidence is low: `{ "refused": true, "reason": "...", "citations": [], "stats": { "refusedAt": "gate", ... } }`.  
+`429` when Ask rate limit is exceeded.
 
 ## `GET /api/failures`
 
-Failure journal entries (`parse` / `extract` / `embed` / `match` / `rerank`).
+Failure journal entries (`parse` / `extract` / `embed` / `sparse` / `match` / `rerank` / `ask`).
 
 ## `GET /api/demo-cases`
 
-Live picks for the four assignment demo cases from current DB state.
+Live picks for assignment demo coverage from current DB state:
+`corroborates` / `contradicts` / `reconciled` (skips `rejected` HITL), `ask` (evidence index ready), `failure`.
 
 ## `POST /api/rematch`
 
@@ -126,4 +142,4 @@ Rebuild relations from stored facts (re-run hybrid recall → rerank → classif
 
 ## `POST /api/reprocess`
 
-Clear knowledge for selected/all documents and re-queue full ingest (extract + embed + match).
+Clear knowledge for **all** ready/failed documents and re-queue full ingest (extract + embed + match).
