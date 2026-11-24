@@ -61,7 +61,7 @@ Local default: SQLite storing vectors as little-endian Float32 BLOBs (no sqlite-
 
 ### Query-time (Ask)
 
-12. Embed question → [`hybridRetrieveEvidence`](../src/lib/embeddings/hybrid-ask.ts) (BM25 ∪ dense evidence + RRF; sparse+dense indexed on ingest) → rerank → generate **only** from context → citations `{factId, page, quote}` or refuse.
+12. **Ask (A0–A7)** — embed question → [`hybridRetrieveEvidence`](../src/lib/embeddings/hybrid-ask.ts) (A0; caps via `ASK_*` / A1) → CE rerank (A2) → context pack + refuse gate (A3) → Groq generate **only** from context (A4) → `POST /api/ask` + UI (A5–A6) → fixtures (A7). Schemas: `AskAnswerSchema` / `AskCitationSchema`.
 
 New documents match **against existing facts only**. Older documents are not re-extracted on every ingest.
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  getAskConfig,
   getClassifyConfig,
   getEmbeddingCacheDir,
   getEmbeddingDimensions,
@@ -55,6 +56,7 @@ export async function GET() {
         ...getClassifyConfig(),
         needsReview: countRelationsByReviewStatus("needs_review"),
       },
+      ask: getAskConfig(),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";

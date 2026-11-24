@@ -85,7 +85,8 @@ or `{ "decision": "rejected" }`.
 
 ## `POST /api/ask`
 
-Classical grounded Ask over the hybrid index.
+Classical grounded Ask over the hybrid index.  
+*(Route lands in A5; response shape locked in A1 via `AskAnswerSchema`.)*
 
 ```json
 { "question": "What revenue figures appear across documents?" }
@@ -97,13 +98,20 @@ Classical grounded Ask over the hybrid index.
 {
   "answer": "...",
   "citations": [
-    { "factId": "...", "page": 12, "quote": "...", "documentId": "..." }
+    {
+      "factId": "...",
+      "documentId": "...",
+      "page": 12,
+      "quote": "...",
+      "evidenceId": "..."
+    }
   ],
-  "refused": false
+  "refused": false,
+  "confidence": 0.82
 }
 ```
 
-When retrieval confidence is low: `{ "refused": true, "reason": "..." }`.
+When retrieval confidence is low: `{ "refused": true, "reason": "...", "citations": [] }`.
 
 ## `GET /api/failures`
 

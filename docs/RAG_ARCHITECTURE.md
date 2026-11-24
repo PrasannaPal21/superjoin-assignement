@@ -498,8 +498,21 @@ flowchart LR
 | 9 | Evidence Ask prep | done | [`hybrid-ask.ts`](../src/lib/embeddings/hybrid-ask.ts) |
 | 10 | Fixtures + smoke | done | [`fixtures.ts`](../src/lib/embeddings/fixtures.ts), `npm run smoke:hybrid` |
 
-**Not in this pipeline (next phases):** Ask generation, GraphRAG.  
-**Rerank:** cascade CE + rare LLM — implemented.
+**Rerank (Compare):** cascade CE + rare LLM — implemented.  
+**Out of scope:** GraphRAG / agentic RAG.
+
+### Ask path checklist (A0–A7)
+
+| # | Stage | Status | Entry |
+|---|--------|--------|--------|
+| A0 | Hybrid evidence retrieve (BM25 ∪ dense → RRF) | done | [`hybrid-ask.ts`](../src/lib/embeddings/hybrid-ask.ts) |
+| A1 | Ask config + citation/answer Zod schemas | done | [`config.ts`](../src/lib/config.ts) `getAskConfig`, [`schemas.ts`](../src/lib/llm/schemas.ts) |
+| A2 | Rerank evidence (CE on question↔quote) | pending | — |
+| A3 | Context pack + refuse gate | pending | — |
+| A4 | Grounded generate (Groq JSON + citations) | pending | — |
+| A5 | `askQuestion` + `POST /api/ask` | pending | — |
+| A6 | Ask UI tab | pending | — |
+| A7 | Fixtures + smoke | pending | — |
 
 ### Classify / HITL checklist (C1–C6)
 

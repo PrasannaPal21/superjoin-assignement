@@ -233,6 +233,97 @@ export function getGroqMatchModel(): string {
   return process.env.GROQ_MATCH_MODEL?.trim() || getGroqModel();
 }
 
+/** Grounded Ask generation model (A1). */
+export function getGroqAskModel(): string {
+  return (
+    process.env.GROQ_ASK_MODEL?.trim() ||
+    getGroqModel()
+  );
+}
+
+/**
+ * Ask hybrid recall caps (A0/A1). Fall back to Compare sparse/dense/RRF knobs
+ * when ASK_* is unset so one env set still works.
+ */
+export function getAskSparseTopK(): number {
+  return Math.max(
+    1,
+    Number(process.env.ASK_SPARSE_TOP_K || process.env.SPARSE_TOP_K || "20"),
+  );
+}
+
+export function getAskDenseTopK(): number {
+  return Math.max(
+    1,
+    Number(process.env.ASK_DENSE_TOP_K || process.env.DENSE_TOP_K || "20"),
+  );
+}
+
+export function getAskRrfTopN(): number {
+  return Math.max(
+    1,
+    Number(
+      process.env.ASK_RRF_TOP_N ||
+        process.env.RRF_TOP_N ||
+        process.env.RERANK_TOP_N ||
+        "30",
+    ),
+  );
+}
+
+/** Evidence passages kept after Ask CE rerank (A2). */
+export function getAskRerankTopM(): number {
+  return Math.max(
+    1,
+    Number(process.env.ASK_RERANK_TOP_M || process.env.RERANK_TOP_M || "8"),
+  );
+}
+
+/** Drop Ask evidence below this post-rerank score (A2). */
+export function getAskRerankMinScore(): number {
+  const n = Number(
+    process.env.ASK_RERANK_MIN_SCORE || process.env.RERANK_MIN_SCORE || "0.35",
+  );
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.35;
+}
+
+/**
+ * Refuse when best post-rerank evidence score is below this (A3).
+ * Clamped to [0, 1].
+ */
+export function getAskRefuseMinScore(): number {
+  const n = Number(process.env.ASK_REFUSE_MIN_SCORE || "0.4");
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0.4;
+}
+
+/** Refuse when fewer than this many evidence hits survive the gate (A3). */
+export function getAskRefuseMinHits(): number {
+  return Math.max(1, Number(process.env.ASK_REFUSE_MIN_HITS || "1"));
+}
+
+/** Snapshot of Ask knobs (health + debugging). */
+export function getAskConfig(): {
+  askModel: string;
+  sparseTopK: number;
+  denseTopK: number;
+  rrfTopN: number;
+  rerankTopM: number;
+  rerankMinScore: number;
+  refuseMinScore: number;
+  refuseMinHits: number;
+} {
+  return {
+    askModel: getGroqAskModel(),
+    sparseTopK: getAskSparseTopK(),
+    denseTopK: getAskDenseTopK(),
+    rrfTopN: getAskRrfTopN(),
+    rerankTopM: getAskRerankTopM(),
+    rerankMinScore: getAskRerankMinScore(),
+    refuseMinScore: getAskRefuseMinScore(),
+    refuseMinHits: getAskRefuseMinHits(),
+  };
+}
+
 /**
  * Embedding backend:
  * - `local` (default) — free open-source ONNX model via @huggingface/transformers

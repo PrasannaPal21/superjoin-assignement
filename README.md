@@ -85,6 +85,7 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `GROQ_EXTRACT_MODEL` | Bulk structured extraction | `openai/gpt-oss-20b` |
 | `GROQ_MATCH_MODEL` | Ambiguous relation pairs | `openai/gpt-oss-120b` |
 | `GROQ_RERANK_MODEL` | Candidate / passage reranker | `openai/gpt-oss-20b` |
+| `GROQ_ASK_MODEL` | Grounded Ask generation | `openai/gpt-oss-120b` |
 | `GROQ_FALLBACK_MODELS` | On `model_not_found` | `openai/gpt-oss-20b` |
 | `EMBEDDING_PROVIDER` | `local` (free ONNX) or `http` | `local` |
 | `EMBEDDING_MODEL` | Local HF model id | `Xenova/all-MiniLM-L6-v2` |
@@ -115,6 +116,9 @@ Production deploy: [docs/DEPLOY.md](docs/DEPLOY.md). Submission checklist: [docs
 | `RERANK_MIN_SCORE` | Drop weak pairs after cascade | `0.35` |
 | `MATCH_BATCH_SIZE` | Pairs per classify API call | `6` |
 | `CONFLICT_REVIEW_THRESHOLD` | Conflicts below this → HITL | `0.75` |
+| `ASK_SPARSE_TOP_K` / `ASK_DENSE_TOP_K` / `ASK_RRF_TOP_N` | Ask hybrid caps (fallback to Compare knobs) | same as Compare |
+| `ASK_RERANK_TOP_M` / `ASK_RERANK_MIN_SCORE` | Ask evidence keep after CE | `8` / `0.35` |
+| `ASK_REFUSE_MIN_SCORE` / `ASK_REFUSE_MIN_HITS` | Refuse when retrieval too weak | `0.4` / `1` |
 | `MAX_CONCURRENT_JOBS` | Parallel documents | `1` |
 | `MAX_CONCURRENT_EXTRACTIONS` | Parallel extract calls | `1`–`4` |
 | `DATABASE_PATH` | SQLite (+ vector extension) path | `data/factlayer.db` |

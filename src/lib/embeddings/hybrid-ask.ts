@@ -1,8 +1,8 @@
 import {
-  getDenseTopK,
+  getAskDenseTopK,
+  getAskRrfTopN,
+  getAskSparseTopK,
   getRrfK,
-  getRrfTopN,
-  getSparseTopK,
 } from "@/lib/config";
 import { getEvidenceByIds } from "@/lib/db/facts";
 import { denseSearchEvidence } from "@/lib/embeddings/dense";
@@ -34,16 +34,17 @@ export type HybridAskOptions = {
 };
 
 /**
- * Ask prep: embed question → BM25 ∪ dense over evidence → RRF.
- * Returns citation-ready rows (factId, page, quote). Generation is a later step.
+ * Ask path A0: embed question → BM25 ∪ dense over evidence → RRF.
+ * Caps prefer ASK_* env (A1), else Compare SPARSE/DENSE/RRF defaults.
+ * Returns citation-ready rows (factId, page, quote). Generation is A4+.
  */
 export async function hybridRetrieveEvidence(
   query: string,
   opts: HybridAskOptions = {},
 ): Promise<AskEvidenceHit[]> {
-  const sparseTopK = opts.sparseTopK ?? getSparseTopK();
-  const denseTopK = opts.denseTopK ?? getDenseTopK();
-  const rrfTopN = opts.rrfTopN ?? getRrfTopN();
+  const sparseTopK = opts.sparseTopK ?? getAskSparseTopK();
+  const denseTopK = opts.denseTopK ?? getAskDenseTopK();
+  const rrfTopN = opts.rrfTopN ?? getAskRrfTopN();
   const rrfK = opts.rrfK ?? getRrfK();
   const scope = { excludeDocumentId: opts.excludeDocumentId };
 
