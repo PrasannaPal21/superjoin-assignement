@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import { getRerankTopN } from "@/lib/config";
-import { insertRelation, clearRelations, listFacts, updateFactMatchKey } from "@/lib/db/facts";
+import {
+  insertRelation,
+  clearRelations,
+  listFacts,
+  updateFactMatchKey,
+  relationPairExists,
+} from "@/lib/db/facts";
 import { listDocuments } from "@/lib/db/documents";
 import {
   classifyRelationBatch,
@@ -33,34 +39,31 @@ function refreshMatchKeys(): number {
   return n;
 }
 
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join(":");
+}
+
 export async function matchDocumentFacts(documentId: string): Promise<number> {
   const recalled = findCandidatePairs(documentId, getRerankTopN());
-  let pairs = recalled;
-  try {
-    const reranked = await rerankFactPairs(recalled);
-    pairs = reranked.pairs;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "rerank failed";
-    insertFailure({
-      id: randomUUID(),
-      document_id: documentId,
-      stage: "rerank",
-      summary: "Cascade/CE rerank failed; continuing with hybrid pairs",
-      detail: message,
-      suggestion: suggestionForError("rerank", message),
-    });
-    pairs = recalled.slice(0, Math.min(recalled.length, 12));
-  }
 
+  // Heuristics first on the full recall set so CE cannot drop clear Agrees /
+  // Conflicts / Different-context pairs (e.g. crore↔million amount bridges).
   let written = 0;
-
   const needsLlm = [];
-  for (const pair of pairs) {
+  const writtenKeys = new Set<string>();
+
+  for (const pair of recalled) {
     const heuristic = classifyRelationHeuristic(pair.left, pair.right, {
       rerankScore: pair.score,
     });
     if (heuristic) {
       if (heuristic.relationType === "unrelated") continue;
+      const key = pairKey(pair.left.id, pair.right.id);
+      if (writtenKeys.has(key) || relationPairExists(pair.left.id, pair.right.id)) {
+        writtenKeys.add(key);
+        continue;
+      }
+      writtenKeys.add(key);
       insertRelation({
         id: randomUUID(),
         fact_a_id: pair.left.id,
@@ -80,10 +83,32 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
     needsLlm.push(pair);
   }
 
+  // CE + LLM only for ambiguous survivors
+  let ambiguous = needsLlm;
+  try {
+    const reranked = await rerankFactPairs(needsLlm);
+    ambiguous = reranked.pairs;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "rerank failed";
+    insertFailure({
+      id: randomUUID(),
+      document_id: documentId,
+      stage: "rerank",
+      summary: "Cascade/CE rerank failed; continuing with hybrid pairs",
+      detail: message,
+      suggestion: suggestionForError("rerank", message),
+    });
+    ambiguous = needsLlm.slice(0, Math.min(needsLlm.length, 12));
+  }
+
+  const llmBatches = ambiguous.filter(
+    (p) => !writtenKeys.has(pairKey(p.left.id, p.right.id)),
+  );
+
   const batchSize = getConfiguredMatchBatchSize();
-  const batches: (typeof needsLlm)[] = [];
-  for (let i = 0; i < needsLlm.length; i += batchSize) {
-    batches.push(needsLlm.slice(i, i + batchSize));
+  const batches: (typeof llmBatches)[] = [];
+  for (let i = 0; i < llmBatches.length; i += batchSize) {
+    batches.push(llmBatches.slice(i, i + batchSize));
   }
 
   const batchWrites = await mapPool(batches, 1, async (batch) => {
@@ -98,6 +123,12 @@ export async function matchDocumentFacts(documentId: string): Promise<number> {
         }
         if (result.relationType === "unrelated") return;
         const pair = batch[idx];
+        const key = pairKey(pair.left.id, pair.right.id);
+        if (writtenKeys.has(key) || relationPairExists(pair.left.id, pair.right.id)) {
+          writtenKeys.add(key);
+          return;
+        }
+        writtenKeys.add(key);
         insertRelation({
           id: randomUUID(),
           fact_a_id: pair.left.id,
