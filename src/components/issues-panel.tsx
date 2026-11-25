@@ -31,13 +31,51 @@ type ReviewItem = {
   b: { claim: string; documentName: string | null; rawValue: string | null; unit: string | null };
 };
 
+function retryLabel(stage: string): string {
+  switch (stage) {
+    case "extract":
+      return "Retry this page";
+    case "match":
+    case "rerank":
+      return "Retry rematch";
+    case "embed":
+    case "sparse":
+      return "Retry re-index";
+    case "parse":
+      return "Retry parse";
+    case "ask":
+      return "Dismiss";
+    default:
+      return "Retry";
+  }
+}
+
+function retryTitle(stage: string): string {
+  switch (stage) {
+    case "extract":
+      return "Re-extract only this failed page/chunk; keeps other facts";
+    case "match":
+    case "rerank":
+      return "Rebuild comparisons only; does not re-extract the PDF";
+    case "embed":
+    case "sparse":
+      return "Re-run local embeddings/sparse index for this document; facts kept";
+    case "parse":
+      return "Retry parse only if the document failed; Ready docs are not wiped";
+    case "ask":
+      return "Clear this Ask journal entry";
+    default:
+      return "Stage-specific retry";
+  }
+}
+
 export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [failures, setFailures] = useState<Failure[]>([]);
   const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [reviewHint, setReviewHint] = useState<string | null>(null);
-  const [reprocessBusy, setReprocessBusy] = useState<string | null>(null);
-  const [reprocessHint, setReprocessHint] = useState<string | null>(null);
+  const [retryBusy, setRetryBusy] = useState<string | null>(null);
+  const [retryHint, setRetryHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -51,16 +89,6 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       /* ignore */
     }
   }, []);
-
-  const extractFailures = failures.filter((f) => f.stage === "extract");
-  const extractFailureIds = extractFailures.map((f) => f.id);
-  const extractDocIds = Array.from(
-    new Set(
-      extractFailures
-        .map((f) => f.documentId)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
 
   useEffect(() => {
     void load();
@@ -90,48 +118,41 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
     }
   }
 
-  async function retryFailedPages(opts: {
-    failureIds?: string[];
-    documentIds?: string[];
-    busyKey: string;
-  }) {
-    const { failureIds, documentIds, busyKey } = opts;
-    if (
-      ((!failureIds || failureIds.length === 0) &&
-        (!documentIds || documentIds.length === 0)) ||
-      reprocessBusy
-    ) {
-      return;
-    }
-    setReprocessBusy(busyKey);
-    setReprocessHint(null);
+  async function retryFailures(failureIds: string[], busyKey: string) {
+    if (failureIds.length === 0 || retryBusy) return;
+    setRetryBusy(busyKey);
+    setRetryHint(null);
     try {
-      const res = await fetch("/api/reprocess", {
+      const res = await fetch("/api/retry-failure", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "failed_pages",
-          failureIds,
-          documentIds,
-        }),
+        body: JSON.stringify(
+          failureIds.length === 1
+            ? { failureId: failureIds[0] }
+            : { failureIds },
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
-          typeof data.error === "string" ? data.error : "Retry failed",
+          typeof data.error === "string"
+            ? data.error
+            : typeof data.message === "string"
+              ? data.message
+              : "Retry failed",
         );
       }
-      setReprocessHint(
+      setRetryHint(
         typeof data.message === "string"
           ? data.message
-          : "Retried failed pages only (other facts kept).",
+          : `Retried ${failureIds.length} failure(s) with stage-specific actions.`,
       );
       window.dispatchEvent(new Event("fkl-refresh"));
       await load();
     } catch (err) {
-      setReprocessHint(err instanceof Error ? err.message : "Retry failed");
+      setRetryHint(err instanceof Error ? err.message : "Retry failed");
     } finally {
-      setReprocessBusy(null);
+      setRetryBusy(null);
     }
   }
 
@@ -209,33 +230,32 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
             <span className="text-[11px] tabular text-muted-foreground">
               {failures.length} entr{failures.length === 1 ? "y" : "ies"}
             </span>
-            {extractFailureIds.length > 0 && (
+            {failures.length > 0 && (
               <button
                 type="button"
-                disabled={Boolean(reprocessBusy)}
+                disabled={Boolean(retryBusy)}
                 onClick={() =>
-                  void retryFailedPages({
-                    failureIds: extractFailureIds,
-                    busyKey: "all-failed",
-                  })
+                  void retryFailures(
+                    failures.map((f) => f.id),
+                    "all",
+                  )
                 }
                 className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-50"
-                title={`Retry ${extractFailureIds.length} failed page chunk(s) across ${extractDocIds.length} doc(s) — keeps other facts`}
+                title="Retry each journal entry with a stage-specific action (no full PDF wipe)"
               >
-                {reprocessBusy === "all-failed" ? (
+                {retryBusy === "all" ? (
                   <Loader2 className="size-3 animate-spin" />
                 ) : (
                   <RefreshCw className="size-3" />
                 )}
-                Retry {extractFailureIds.length} failed page
-                {extractFailureIds.length === 1 ? "" : "s"}
+                Retry all ({failures.length})
               </button>
             )}
           </div>
         </div>
-        {reprocessHint && (
+        {retryHint && (
           <p className="border-b border-border bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
-            {reprocessHint}
+            {retryHint}
           </p>
         )}
 
@@ -274,29 +294,22 @@ export function IssuesPanel({ refreshKey = 0 }: { refreshKey?: number }) {
                   {f.suggestion}
                 </p>
               )}
-              {f.stage === "extract" && (
-                <div className="mt-2.5">
-                  <button
-                    type="button"
-                    disabled={Boolean(reprocessBusy)}
-                    onClick={() =>
-                      void retryFailedPages({
-                        failureIds: [f.id],
-                        busyKey: `one:${f.id}`,
-                      })
-                    }
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
-                    title="Re-extract only this failed page/chunk; keeps the rest of the PDF facts"
-                  >
-                    {reprocessBusy === `one:${f.id}` ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="size-3" />
-                    )}
-                    Retry this page
-                  </button>
-                </div>
-              )}
+              <div className="mt-2.5">
+                <button
+                  type="button"
+                  disabled={Boolean(retryBusy)}
+                  onClick={() => void retryFailures([f.id], `one:${f.id}`)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                  title={retryTitle(f.stage)}
+                >
+                  {retryBusy === `one:${f.id}` ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-3" />
+                  )}
+                  {retryLabel(f.stage)}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
