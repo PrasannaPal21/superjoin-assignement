@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { FactRow } from "@/lib/db/facts";
+import type { ChunkRow } from "@/lib/db/chunks";
 import {
   ENTITY_MISMATCH_RERANK_KEEP,
+  buildFactClassifyPayload,
   classifyRelationHeuristic,
   clampConfidence,
   normalizeClassificationResult,
@@ -195,6 +197,69 @@ describe("classify heuristics (stage 1)", () => {
       period: "FY24",
     });
     expect(classifyRelationHeuristic(a, b)?.relationType).toBe("corroborates");
+  });
+});
+
+describe("classify parent context payload", () => {
+  it("attaches sectionTitle and parentContext from the child→parent link", () => {
+    const chunks: Record<string, ChunkRow> = {
+      child: {
+        id: "child",
+        document_id: "d",
+        page_start: 12,
+        page_end: 12,
+        text: "Revenue from operations 8,143",
+        token_estimate: 20,
+        kind: "child",
+        parent_id: "parent",
+        section_title: "Consolidated financials FY24",
+        block_kind: "table",
+        signal_score: 1,
+        created_at: "",
+      },
+      parent: {
+        id: "parent",
+        document_id: "d",
+        page_start: 12,
+        page_end: 12,
+        text: "Table: Consolidated Statement of Profit and Loss — Revenue from operations for FY24.",
+        token_estimate: 40,
+        kind: "parent",
+        parent_id: null,
+        section_title: "Consolidated financials FY24",
+        block_kind: "table",
+        signal_score: 1,
+        created_at: "",
+      },
+    };
+
+    const payload = buildFactClassifyPayload(
+      fact({
+        id: "a",
+        chunk_id: "child",
+        claim: "Revenue from operations",
+        numeric_value: 8143,
+        unit: "crore",
+        period: "FY24",
+      }),
+      {
+        getChunk: (id) => chunks[id] ?? null,
+        listEvidence: () => [
+          {
+            id: "e1",
+            fact_id: "a",
+            document_id: "d",
+            page: 12,
+            quote: "Revenue from operations 8,143",
+            created_at: "",
+          },
+        ],
+      },
+    );
+
+    expect(payload.sectionTitle).toBe("Consolidated financials FY24");
+    expect(payload.parentContext).toContain("Consolidated Statement");
+    expect(payload.evidenceQuote).toContain("8,143");
   });
 });
 
