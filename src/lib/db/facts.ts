@@ -49,6 +49,7 @@ export type RelationRow = {
 export type FailureRow = {
   id: string;
   document_id: string | null;
+  chunk_id?: string | null;
   stage: string;
   summary: string;
   detail: string | null;
@@ -124,10 +125,30 @@ export function insertFailure(row: Omit<FailureRow, "created_at">): void {
   ensureDb();
   getDb()
     .prepare(
-      `INSERT INTO failures (id, document_id, stage, summary, detail, suggestion)
-       VALUES (@id, @document_id, @stage, @summary, @detail, @suggestion)`,
+      `INSERT INTO failures (id, document_id, chunk_id, stage, summary, detail, suggestion)
+       VALUES (@id, @document_id, @chunk_id, @stage, @summary, @detail, @suggestion)`,
     )
-    .run(row);
+    .run({
+      id: row.id,
+      document_id: row.document_id,
+      chunk_id: row.chunk_id ?? null,
+      stage: row.stage,
+      summary: row.summary,
+      detail: row.detail,
+      suggestion: row.suggestion,
+    });
+}
+
+export function deleteFailuresByIds(ids: string[]): number {
+  if (ids.length === 0) return 0;
+  ensureDb();
+  const stmt = getDb().prepare(`DELETE FROM failures WHERE id = ?`);
+  let n = 0;
+  for (const id of ids) {
+    const r = stmt.run(id);
+    n += Number(r.changes ?? 0);
+  }
+  return n;
 }
 
 export function listFacts(documentId?: string): FactRow[] {

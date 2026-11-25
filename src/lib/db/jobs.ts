@@ -20,6 +20,37 @@ export function claimNextJob(): JobRow | undefined {
   return getDb().prepare("SELECT * FROM jobs WHERE id = ?").get(job.id) as JobRow;
 }
 
+export function listJobsByStatus(status: string): JobRow[] {
+  ensureDb();
+  return getDb()
+    .prepare(
+      `SELECT * FROM jobs WHERE status = ? ORDER BY created_at ASC`,
+    )
+    .all(status) as JobRow[];
+}
+
+/**
+ * After a process restart, in-DB `running` rows are orphans (nothing is
+ * actually executing them). They block the worker when maxConcurrent=1.
+ * Mark them failed so queued work can proceed; user can reprocess.
+ * @returns document ids that were tied to reclaimed jobs
+ */
+export function reclaimOrphanedRunningJobs(
+  activeJobIds: ReadonlySet<string>,
+): string[] {
+  ensureDb();
+  const docIds: string[] = [];
+  for (const job of listJobsByStatus("running")) {
+    if (activeJobIds.has(job.id)) continue;
+    failJob(
+      job.id,
+      "Interrupted (server restart). Re-process or re-upload this document.",
+    );
+    docIds.push(job.document_id);
+  }
+  return docIds;
+}
+
 export function updateJobProgress(
   id: string,
   progress: string,

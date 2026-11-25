@@ -6,6 +6,7 @@ import {
   completeJob,
   countJobsByStatus,
   failJob,
+  reclaimOrphanedRunningJobs,
   updateJobProgress,
 } from "@/lib/db/jobs";
 import { insertFailure } from "@/lib/db/facts";
@@ -39,6 +40,8 @@ export function setMatchHandler(
 }
 
 let ticking = false;
+/** Jobs actually executing in this process (not orphaned DB rows). */
+const activeJobIds = new Set<string>();
 
 export function kickWorker(): void {
   if (ticking) return;
@@ -52,11 +55,28 @@ export function kickWorker(): void {
 }
 
 async function runWorkerLoop(): Promise<void> {
+  // Orphaned `running` rows (e.g. after crash) block maxConcurrent=1 forever.
+  const orphanedDocIds = reclaimOrphanedRunningJobs(activeJobIds);
+  for (const documentId of orphanedDocIds) {
+    const doc = getDocument(documentId);
+    if (doc && (doc.status === "processing" || doc.status === "queued")) {
+      updateDocumentStatus(documentId, "failed", {
+        error_message:
+          "Interrupted (server restart). Re-process or re-upload this document.",
+      });
+    }
+  }
+
   const maxConcurrent = getMaxConcurrentJobs();
   while (countJobsByStatus("running") < maxConcurrent) {
     const job = claimNextJob();
     if (!job) break;
-    await processJob(job.id, job.document_id);
+    activeJobIds.add(job.id);
+    try {
+      await processJob(job.id, job.document_id);
+    } finally {
+      activeJobIds.delete(job.id);
+    }
   }
 }
 
@@ -165,6 +185,7 @@ async function processJob(jobId: string, documentId: string): Promise<void> {
           insertFailure({
             id: randomUUID(),
             document_id: documentId,
+            chunk_id: job.childId,
             stage: "extract",
             summary: `Child p.${job.child.pageStart}-${job.child.pageEnd} extraction failed`,
             detail: message,

@@ -33,7 +33,13 @@ export function suggestionForError(stage: string, message: string): string {
     return "Check embeddings index, ASK_REFUSE_* thresholds, GROQ_ASK_MODEL, and retry the question.";
   }
   if (stage === "extract") {
-    return "Check GROQ_API_KEY / GROQ_EXTRACT_MODEL, lower MAX_EXTRACT_CHUNKS if rate-limited, then re-process.";
+    if (/json_validate_failed|Failed to validate JSON/i.test(message)) {
+      return "Groq rejected invalid JSON for this page (often dense tables/slides). Use Issues → Reprocess on this document and retry.";
+    }
+    if (/429|rate limit/i.test(message)) {
+      return "Rate limited during extract. Wait a minute, then Issues → Reprocess this document.";
+    }
+    return "Check GROQ_API_KEY / GROQ_EXTRACT_MODEL, then Issues → Reprocess this document.";
   }
   return "Inspect the error detail, fix configuration, and re-upload or re-process the document.";
 }

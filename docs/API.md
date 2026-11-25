@@ -142,4 +142,11 @@ Rebuild relations from stored facts (re-run hybrid recall → rerank → classif
 
 ## `POST /api/reprocess`
 
-Clear knowledge for **all** ready/failed documents and re-queue full ingest (extract + embed + match).
+Clear knowledge and re-queue full ingest (extract + embed + match).
+
+```json
+{ "documentIds": ["optional-doc-id", "..."] }
+```
+
+- With `documentIds`: only those documents (used from **Issues → Reprocess**).
+- Without body / empty: all **ready** / **failed** documents (Compare “Re-extract all”).

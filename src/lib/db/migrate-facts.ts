@@ -8,6 +8,9 @@ function columnNames(table: string): Set<string> {
 }
 
 function migrateRelationReviewStatus(): void {
+  // Old DBs may already have `relations` without review_status.
+  // Never create the review index inside the CREATE TABLE IF NOT EXISTS batch —
+  // that index runs even when the table already exists and the column does not.
   const cols = columnNames("relations");
   if (!cols.has("review_status")) {
     getDb().exec(
@@ -78,11 +81,11 @@ export function migrateFactsAndRelations(): void {
 
     CREATE INDEX IF NOT EXISTS idx_relations_type ON relations(relation_type);
     CREATE INDEX IF NOT EXISTS idx_relations_facts ON relations(fact_a_id, fact_b_id);
-    CREATE INDEX IF NOT EXISTS idx_relations_review ON relations(review_status);
 
     CREATE TABLE IF NOT EXISTS failures (
       id TEXT PRIMARY KEY,
       document_id TEXT,
+      chunk_id TEXT,
       stage TEXT NOT NULL,
       summary TEXT NOT NULL,
       detail TEXT,
@@ -94,4 +97,15 @@ export function migrateFactsAndRelations(): void {
 
   // Additive for DBs created before review_status existed.
   migrateRelationReviewStatus();
+  migrateFailureChunkId();
+}
+
+function migrateFailureChunkId(): void {
+  const cols = columnNames("failures");
+  if (!cols.has("chunk_id")) {
+    getDb().exec(`ALTER TABLE failures ADD COLUMN chunk_id TEXT`);
+  }
+  getDb().exec(
+    `CREATE INDEX IF NOT EXISTS idx_failures_chunk ON failures(chunk_id)`,
+  );
 }

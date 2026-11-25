@@ -45,6 +45,7 @@ export function AppShell() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedDocName, setSelectedDocName] = useState<string | null>(null);
   const [healthOk, setHealthOk] = useState<boolean | null>(null);
+  const [healthLabel, setHealthLabel] = useState("Checking…");
   const [docs, setDocs] = useState<DocumentDto[]>([]);
   const [counts, setCounts] = useState({ facts: 0, relations: 0, failures: 0 });
   const [jobsBusy, setJobsBusy] = useState(0);
@@ -59,9 +60,19 @@ export function AppShell() {
 
   useEffect(() => {
     void fetch("/api/health")
-      .then((r) => r.json())
-      .then((d) => setHealthOk(Boolean(d.ok)))
-      .catch(() => setHealthOk(false));
+      .then(async (r) => {
+        const d = await r.json();
+        const ok = Boolean(d.ok);
+        setHealthOk(ok);
+        if (ok) setHealthLabel("System healthy");
+        else if (d.error) setHealthLabel("DB / health error");
+        else if (!d.llm?.configured) setHealthLabel("API key missing");
+        else setHealthLabel("Not ready");
+      })
+      .catch(() => {
+        setHealthOk(false);
+        setHealthLabel("Health check failed");
+      });
   }, [refreshKey]);
 
   useEffect(() => {
@@ -129,7 +140,7 @@ export function AppShell() {
                 healthOk ? "bg-ok" : healthOk === false ? "bg-danger" : "bg-muted-foreground/40",
               )}
             />
-            {healthOk === false ? "API key missing" : "System healthy"}
+            {healthLabel}
           </span>
           <ThemeToggle />
         </div>

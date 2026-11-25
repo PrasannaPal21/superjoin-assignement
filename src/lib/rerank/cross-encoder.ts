@@ -5,12 +5,22 @@ import {
   getRerankCeModel,
 } from "@/lib/config";
 
-type CePipeline = (
-  input: { text: string; text_pair: string } | string,
-  options?: { text_pair?: string; topk?: number },
-) => Promise<unknown>;
+type CeTokenizer = (
+  texts: string | string[],
+  options?: {
+    text_pair?: string | string[];
+    padding?: boolean | string;
+    truncation?: boolean;
+    max_length?: number;
+  },
+) => Record<string, unknown>;
 
-let cePipeline: CePipeline | null = null;
+type CeModel = (inputs: Record<string, unknown>) => Promise<{
+  logits?: { data?: ArrayLike<number>; dims?: number[] };
+}>;
+
+let ceTokenizer: CeTokenizer | null = null;
+let ceModel: CeModel | null = null;
 let ceModelId: string | null = null;
 
 function sigmoid(x: number): number {
@@ -27,7 +37,7 @@ function clamp01(x: number): number {
   return Math.min(1, Math.max(0, x));
 }
 
-/** Normalize CE pipeline output to a relevance score in [0, 1]. */
+/** Normalize CE pipeline/model output to a relevance score in [0, 1]. */
 export function normalizeCeScore(raw: unknown): number {
   if (typeof raw === "number") {
     if (raw >= 0 && raw <= 1) return raw;
@@ -52,45 +62,88 @@ export function normalizeCeScore(raw: unknown): number {
   return 0;
 }
 
-async function getCePipeline(): Promise<CePipeline> {
-  const model = getRerankCeModel();
-  if (cePipeline && ceModelId === model) return cePipeline;
+async function getCeModel(): Promise<{
+  tokenizer: CeTokenizer;
+  model: CeModel;
+}> {
+  const modelId = getRerankCeModel();
+  if (ceTokenizer && ceModel && ceModelId === modelId) {
+    return { tokenizer: ceTokenizer, model: ceModel };
+  }
 
-  const { pipeline, env } = await import("@huggingface/transformers");
+  const { AutoTokenizer, AutoModelForSequenceClassification, env } =
+    await import("@huggingface/transformers");
   env.cacheDir = path.resolve(
     process.cwd(),
     getRerankCacheDir() || getEmbeddingCacheDir(),
   );
   env.allowLocalModels = true;
 
-  cePipeline = (await pipeline(
-    "text-classification",
-    model,
-  )) as CePipeline;
-  ceModelId = model;
-  return cePipeline;
+  // Bypass text-classification pipeline: softmax over a single logit is always 1.0.
+  const [tokenizer, model] = await Promise.all([
+    AutoTokenizer.from_pretrained(modelId),
+    AutoModelForSequenceClassification.from_pretrained(modelId),
+  ]);
+
+  ceTokenizer = tokenizer as unknown as CeTokenizer;
+  ceModel = model as unknown as CeModel;
+  ceModelId = modelId;
+  return { tokenizer: ceTokenizer, model: ceModel };
+}
+
+function logitsToScores(
+  logits: { data?: ArrayLike<number>; dims?: number[] } | undefined,
+  expected: number,
+): number[] {
+  if (!logits?.data) return Array.from({ length: expected }, () => 0);
+  const data = logits.data;
+  const dims = logits.dims ?? [expected, 1];
+  const batch = dims[0] ?? expected;
+  const numLabels = dims[1] ?? Math.max(1, Math.floor(data.length / batch));
+  const out: number[] = [];
+  for (let i = 0; i < batch; i++) {
+    // Single-logit CE head → sigmoid(logit). Multi-label: positive class if present.
+    const logit =
+      numLabels === 1
+        ? Number(data[i])
+        : Number(data[i * numLabels + Math.min(1, numLabels - 1)]);
+    out.push(clamp01(sigmoid(logit)));
+  }
+  while (out.length < expected) out.push(0);
+  return out.slice(0, expected);
 }
 
 /**
  * Score (query, doc) pairs with a local cross-encoder (Transformers.js ONNX).
+ * Uses AutoModelForSequenceClassification + raw logits (not text-classification).
  */
 export async function scorePairsWithCrossEncoder(
   pairs: Array<{ query: string; doc: string }>,
 ): Promise<number[]> {
   if (pairs.length === 0) return [];
-  const ranker = await getCePipeline();
-  const scores: number[] = [];
+  const { tokenizer, model } = await getCeModel();
 
-  for (const pair of pairs) {
-    const query = pair.query.replace(/\s+/g, " ").trim() || "unknown";
-    const doc = pair.doc.replace(/\s+/g, " ").trim() || "unknown";
-    let raw: unknown;
-    try {
-      raw = await ranker({ text: query, text_pair: doc });
-    } catch {
-      raw = await ranker(query, { text_pair: doc });
-    }
-    scores.push(normalizeCeScore(raw));
+  const queries = pairs.map(
+    (p) => p.query.replace(/\s+/g, " ").trim() || "unknown",
+  );
+  const docs = pairs.map(
+    (p) => p.doc.replace(/\s+/g, " ").trim() || "unknown",
+  );
+
+  // Score in small batches to keep memory bounded on CPU.
+  const batchSize = 8;
+  const scores: number[] = [];
+  for (let i = 0; i < pairs.length; i += batchSize) {
+    const qBatch = queries.slice(i, i + batchSize);
+    const dBatch = docs.slice(i, i + batchSize);
+    const inputs = tokenizer(qBatch, {
+      text_pair: dBatch,
+      padding: true,
+      truncation: true,
+      max_length: 512,
+    });
+    const output = await model(inputs);
+    scores.push(...logitsToScores(output.logits, qBatch.length));
   }
   return scores;
 }
