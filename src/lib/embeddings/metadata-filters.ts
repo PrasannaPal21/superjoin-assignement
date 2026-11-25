@@ -5,6 +5,13 @@ import {
   getUnitMatchBoost,
 } from "@/lib/config";
 import type { FactRow } from "@/lib/db/facts";
+import {
+  canonicalFactType,
+  normalizePeriod,
+  normalizeUnit,
+} from "@/lib/pipeline/fact-normalize";
+
+export { normalizePeriod } from "@/lib/pipeline/fact-normalize";
 
 /**
  * Soft metadata scoring for hybrid recall.
@@ -18,14 +25,6 @@ export function normalizeEntityFamily(entity?: string | null): string {
     .replace(/\b(limited|ltd\.?|inc\.?|pvt\.?|private|company)\b/g, " ")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
-    .trim();
-}
-
-export function normalizePeriod(period?: string | null): string {
-  return (period || "")
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/fiscal|fy\.?/g, "fy")
     .trim();
 }
 
@@ -65,15 +64,24 @@ export function metadataSoftBoost(
     tags.push("entity");
   }
 
-  const qu = (query.unit || "").toLowerCase().trim();
-  const cu = (candidate.unit || "").toLowerCase().trim();
+  const qu = normalizeUnit(query.unit);
+  const cu = normalizeUnit(candidate.unit);
   if (qu && cu && qu === cu) {
     multiplier *= getUnitMatchBoost();
     tags.push("unit");
+  } else if (
+    qu &&
+    cu &&
+    ["crore", "million", "billion", "lakh"].includes(qu) &&
+    ["crore", "million", "billion", "lakh"].includes(cu)
+  ) {
+    // Compatible INR scales — still help recall for million↔crore pairs
+    multiplier *= Math.sqrt(getUnitMatchBoost());
+    tags.push("unit_scale");
   }
 
-  const qt = (query.fact_type || "").toLowerCase().trim();
-  const ct = (candidate.fact_type || "").toLowerCase().trim();
+  const qt = canonicalFactType(query.fact_type);
+  const ct = canonicalFactType(candidate.fact_type);
   if (qt && ct && qt === ct && qt !== "other") {
     multiplier *= getFactTypeBoost();
     tags.push("type");

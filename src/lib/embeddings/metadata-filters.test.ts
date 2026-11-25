@@ -39,6 +39,8 @@ describe("metadata soft filters (embeddings step 8)", () => {
     expect(entitiesSameFamily("Delhivery", "Acme Corp")).toBe(false);
     expect(normalizePeriod("FY 2024")).toBe("fy2024");
     expect(normalizePeriod("Fiscal 2024")).toBe("fy2024");
+    expect(normalizePeriod("FY24")).toBe("fy2024");
+    expect(normalizePeriod("Year ended March 31, 2024")).toBe("fy2024");
   });
 
   it("boosts same entity/unit/type/period without dropping period mismatches", () => {

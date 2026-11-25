@@ -4,18 +4,16 @@ import { ensureDb } from "@/lib/db";
 import { insertEvidence, insertFact } from "@/lib/db/facts";
 import { extractFactsFromChunk } from "@/lib/llm/extract";
 import type { TextChunk } from "@/lib/pdf/chunk";
-
-function normalizeEntity(entity?: string | null): string {
-  return (entity || "")
-    .toLowerCase()
-    .replace(/\b(limited|ltd\.?|inc\.?|pvt\.?|private|company)\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+import {
+  canonicalFactType,
+  normalizeEntityForMatch,
+  normalizeUnit,
+} from "@/lib/pipeline/fact-normalize";
 
 /**
  * Stable family key for cross-document candidates.
  * Period/scope are intentionally omitted so FY23 vs FY24 (etc.) can still pair;
+ * ₹ crore/million/billion collapse to `inr` so unit-scale variants still pair;
  * classification decides corroborates / contradicts / reconciled.
  */
 export function buildMatchKey(fact: {
@@ -24,10 +22,14 @@ export function buildMatchKey(fact: {
   unit?: string | null;
   claim?: string | null;
 }): string {
+  const unit = normalizeUnit(fact.unit);
+  const unitKey = ["crore", "million", "billion", "lakh"].includes(unit)
+    ? "inr"
+    : unit;
   const parts = [
-    normalizeEntity(fact.entity),
-    (fact.factType || "").toLowerCase().trim(),
-    (fact.unit || "").toLowerCase().trim(),
+    normalizeEntityForMatch(fact.entity),
+    canonicalFactType(fact.factType),
+    unitKey,
   ];
   return parts.filter(Boolean).join("|") || (fact.claim || "").toLowerCase().slice(0, 80);
 }
