@@ -99,6 +99,19 @@ export function insertEvidence(row: Omit<EvidenceRow, "created_at">): void {
     .run(row);
 }
 
+export function relationPairExists(factAId: string, factBId: string): boolean {
+  ensureDb();
+  const row = getDb()
+    .prepare(
+      `SELECT 1 AS ok FROM relations
+       WHERE (fact_a_id = ? AND fact_b_id = ?)
+          OR (fact_a_id = ? AND fact_b_id = ?)
+       LIMIT 1`,
+    )
+    .get(factAId, factBId, factBId, factAId) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
 export function insertRelation(
   row: Omit<RelationRow, "created_at" | "review_status"> & {
     review_status?: ReviewStatus | string;
@@ -282,6 +295,15 @@ export function updateRelationReviewStatus(
     .prepare(`UPDATE relations SET review_status = ? WHERE id = ?`)
     .run(reviewStatus, id);
   return Number(result.changes ?? 0) > 0;
+}
+
+export function getFailure(id: string): FailureRow | null {
+  ensureDb();
+  return (
+    (getDb()
+      .prepare(`SELECT * FROM failures WHERE id = ?`)
+      .get(id) as FailureRow | undefined) ?? null
+  );
 }
 
 export function listFailures(): FailureRow[] {
