@@ -1,8 +1,5 @@
 import { getGroqMatchModel, getMatchBatchSize } from "@/lib/config";
-import {
-  entitiesSameFamily,
-  normalizePeriod as normalizePeriodMeta,
-} from "@/lib/embeddings/metadata-filters";
+import { entitiesSameFamily } from "@/lib/embeddings/metadata-filters";
 import { chatJson, sanitizeUntrustedText } from "@/lib/llm/groq";
 import { parseJsonWithRepair } from "@/lib/llm/json-repair";
 import {
@@ -13,6 +10,15 @@ import { getChunk, type ChunkRow } from "@/lib/db/chunks";
 import type { FactRow } from "@/lib/db/facts";
 import { listEvidenceForFact } from "@/lib/db/facts";
 import type { FactPair } from "@/lib/pipeline/match-candidates";
+import {
+  amountsEquivalent,
+  magnitudesComparable,
+  normalizeEntityForMatch,
+  normalizePeriod as normalizePeriodCanon,
+  normalizeUnit as normalizeUnitCanon,
+  periodRelation,
+  sameMetricFamily as sameMetricFamilyCanon,
+} from "@/lib/pipeline/fact-normalize";
 import { z } from "zod";
 
 /** Parent section excerpt for LLM classify (keeps batch prompts bounded). */
@@ -207,19 +213,11 @@ function approxEqual(a: number, b: number): boolean {
 }
 
 export function normalizePeriod(p: string | null): string {
-  return normalizePeriodMeta(p);
+  return normalizePeriodCanon(p);
 }
 
 export function normalizeUnit(unit?: string | null): string {
-  const u = (unit || "").toLowerCase().replace(/\s+/g, "");
-  if (!u) return "";
-  if (/^cr(ore)?s?$/.test(u) || u === "₹crore" || u.includes("crore")) {
-    return "crore";
-  }
-  if (/^(mn|m|million)s?$/.test(u) || u.includes("million")) return "million";
-  if (/^(bn|b|billion)s?$/.test(u) || u.includes("billion")) return "billion";
-  if (/^(%|pct|percent|percentage)$/.test(u)) return "percent";
-  return u;
+  return normalizeUnitCanon(unit);
 }
 
 export function normalizeScope(scope?: string | null): string {
@@ -227,6 +225,14 @@ export function normalizeScope(scope?: string | null): string {
   if (!s) return "";
   if (/consol/.test(s)) return "consolidated";
   if (/stand\s*-?\s*alone|standalone/.test(s)) return "standalone";
+  // Soft / row-label scopes — don't block Agrees when amounts already match
+  if (
+    /^(overall|total|company|group|financial|unknown|india|services(?:\s*\([a-z]\))?)$/i.test(
+      s,
+    )
+  ) {
+    return "";
+  }
   return s;
 }
 
@@ -236,16 +242,14 @@ export type ClassifyHeuristicOptions = {
 };
 
 function sameMetricFamily(left: FactRow, right: FactRow): boolean {
-  const sameType =
-    !!left.fact_type &&
-    !!right.fact_type &&
-    left.fact_type.toLowerCase() === right.fact_type.toLowerCase() &&
-    left.fact_type.toLowerCase() !== "other";
-  const sameKey =
-    !!left.match_key &&
-    !!right.match_key &&
-    left.match_key === right.match_key;
-  return sameKey || sameType;
+  return sameMetricFamilyCanon(
+    left.fact_type,
+    right.fact_type,
+    left.match_key,
+    right.match_key,
+    left.claim,
+    right.claim,
+  );
 }
 
 /**
@@ -271,8 +275,10 @@ export function classifyRelationHeuristic(
 
   const lp = normalizePeriod(left.period);
   const rp = normalizePeriod(right.period);
-  const periodsDiffer = Boolean(lp && rp && lp !== rp);
-  const periodsSame = Boolean(lp && rp && lp === rp) || (!lp && !rp);
+  const pRel = periodRelation(left.period, right.period);
+  const periodsDiffer =
+    pRel === "parallel" || pRel === "nested" || pRel === "incompatible";
+  const periodsSame = pRel === "same" || (!lp && !rp);
 
   const lu = normalizeUnit(left.unit);
   const ru = normalizeUnit(right.unit);
@@ -285,10 +291,10 @@ export function classifyRelationHeuristic(
   const scopesSame = Boolean(ls && rs && ls === rs) || (!ls && !rs);
 
   // Clear entity mismatch → unrelated (unless strong rerank says keep for LLM).
-  const bothEntities = Boolean(
-    (left.entity || "").trim() && (right.entity || "").trim(),
-  );
-  if (bothEntities && !entitiesSameFamily(left.entity, right.entity)) {
+  // Ignore placeholder entities ("Company", "Financial", row labels, …).
+  const leftEnt = normalizeEntityForMatch(left.entity);
+  const rightEnt = normalizeEntityForMatch(right.entity);
+  if (leftEnt && rightEnt && !entitiesSameFamily(leftEnt, rightEnt)) {
     const keepForLlm =
       opts.rerankScore != null &&
       opts.rerankScore >= ENTITY_MISMATCH_RERANK_KEEP;
@@ -302,22 +308,66 @@ export function classifyRelationHeuristic(
   }
 
   if (family && ln != null && rn != null) {
-    if (approxEqual(ln, rn)) {
-      if (unitsDiffer) {
+    const amt = amountsEquivalent(ln, left.unit, rn, right.unit);
+
+    // Q3 FY24 vs FY23 (etc.) is not a meaningful adaptive-time pair
+    if (pRel === "incompatible") {
+      return {
+        relationType: "unrelated",
+        rationale:
+          "Periods are not comparable (e.g. a quarter vs a different fiscal year).",
+        contextTags: ["time"],
+        confidence: 0.88,
+      };
+    }
+
+    // Adaptive time scale: quarter vs enclosing FY only
+    if (pRel === "nested") {
+      return {
+        relationType: "reconciled",
+        rationale:
+          "Same metric family on nested time scales (e.g. quarter inside a fiscal year).",
+        contextTags: ["time"],
+        confidence: 0.84,
+      };
+    }
+
+    if (amt.equal) {
+      if (pRel === "parallel") {
         return {
           relationType: "reconciled",
           rationale:
-            "Same metric family and similar numbers under different units.",
-          contextTags: ["units"],
-          confidence: 0.84,
+            "Same metric family and equivalent amount across different periods.",
+          contextTags: ["time"],
+          confidence: 0.82,
         };
       }
       if (scopesDiffer) {
         return {
           relationType: "reconciled",
           rationale:
-            "Same metric family and similar numbers under different reporting scope.",
+            "Same metric family and equivalent amount under different reporting scope.",
           contextTags: ["scope"],
+          confidence: 0.84,
+        };
+      }
+      // True same amount after crore↔million (etc.) → Agrees
+      if (amt.scale === "converted" || amt.scale === "inferred") {
+        return {
+          relationType: "corroborates",
+          rationale:
+            "Same metric family with equivalent value after unit-scale conversion.",
+          contextTags: ["units"],
+          confidence: 0.9,
+        };
+      }
+      // Raw digits match but incompatible scales (100 crore vs 100 million)
+      if (unitsDiffer && approxEqual(ln, rn)) {
+        return {
+          relationType: "reconciled",
+          rationale:
+            "Same metric family and similar digits under different unit scales.",
+          contextTags: ["units"],
           confidence: 0.84,
         };
       }
@@ -325,26 +375,18 @@ export function classifyRelationHeuristic(
         relationType: "corroborates",
         rationale: "Same metric family with matching numeric values.",
         contextTags: periodsDiffer ? ["time"] : [],
-        confidence: sameKey ? 0.9 : 0.75,
+        confidence: sameKey ? 0.9 : 0.78,
       };
     }
 
-    if (periodsDiffer) {
+    // FY23 vs FY24 (same grain) with different values → Different context
+    if (pRel === "parallel") {
       return {
         relationType: "reconciled",
         rationale:
           "Same metric family with different values explained by different periods.",
         contextTags: ["time"],
         confidence: 0.82,
-      };
-    }
-    if (unitsDiffer) {
-      return {
-        relationType: "reconciled",
-        rationale:
-          "Same metric family with different values explained by different units.",
-        contextTags: ["units"],
-        confidence: 0.8,
       };
     }
     if (scopesDiffer) {
@@ -356,13 +398,40 @@ export function classifyRelationHeuristic(
         confidence: 0.8,
       };
     }
-    if (periodsSame && unitsSame && scopesSame && (sameKey || sameType)) {
+    // Digits look alike but scales disagree and conversion does not match
+    if (unitsDiffer && approxEqual(ln, rn)) {
+      return {
+        relationType: "reconciled",
+        rationale:
+          "Same metric family with similar digits under different unit scales.",
+        contextTags: ["units"],
+        confidence: 0.8,
+      };
+    }
+    // Same period conflict only when magnitudes are in the same ballpark
+    // (avoids 4516 mn vs 1008 Cr false Conflicts across different line items).
+    if (
+      periodsSame &&
+      (unitsSame || amt.scale === null) &&
+      scopesSame &&
+      family &&
+      magnitudesComparable(ln, left.unit, rn, right.unit, 2)
+    ) {
       return {
         relationType: "contradicts",
         rationale:
-          "Same metric family, period, unit, and scope with conflicting numeric values.",
-        contextTags: [],
-        confidence: sameKey ? 0.86 : 0.78,
+          "Same metric family, period, and scope with conflicting numeric values.",
+        contextTags: unitsDiffer ? ["units"] : [],
+        confidence: sameKey || sameType ? 0.86 : 0.76,
+      };
+    }
+    if (periodsSame && family && !magnitudesComparable(ln, left.unit, rn, right.unit, 2)) {
+      return {
+        relationType: "unrelated",
+        rationale:
+          "Same broad metric family but magnitudes differ too much to be the same line item.",
+        contextTags: ["fact_type"],
+        confidence: 0.8,
       };
     }
   }

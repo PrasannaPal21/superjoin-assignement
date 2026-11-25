@@ -41,6 +41,88 @@ describe("classify heuristics (stage 1)", () => {
     expect(normalizeScope("stand-alone")).toBe("standalone");
   });
 
+  it("corroborates after crore↔million conversion on the same FY", () => {
+    const a = fact({
+      id: "a",
+      fact_type: "revenue",
+      numeric_value: 81415.38,
+      unit: "million",
+      period: "FY24",
+      scope: "overall",
+      match_key: "delhivery|revenue|inr",
+    });
+    const b = fact({
+      id: "b",
+      fact_type: "revenue_amount",
+      numeric_value: 8142,
+      unit: "Cr",
+      period: "FY 2024",
+      scope: "services (A)",
+      match_key: "delhivery|revenue|inr",
+    });
+    const r = classifyRelationHeuristic(a, b);
+    expect(r?.relationType).toBe("corroborates");
+    expect(r?.contextTags).toContain("units");
+  });
+
+  it("reconciles quarter vs enclosing fiscal year", () => {
+    const a = fact({
+      id: "a",
+      numeric_value: 2000,
+      unit: "crore",
+      period: "Q4 FY24",
+      match_key: "delhivery|revenue|inr",
+    });
+    const b = fact({
+      id: "b",
+      numeric_value: 8142,
+      unit: "crore",
+      period: "FY24",
+      match_key: "delhivery|revenue|inr",
+    });
+    const r = classifyRelationHeuristic(a, b);
+    expect(r?.relationType).toBe("reconciled");
+    expect(r?.contextTags).toContain("time");
+  });
+
+  it("marks crossed grain/year pairs unrelated (Q3 FY24 vs FY23)", () => {
+    const a = fact({
+      id: "a",
+      numeric_value: 92,
+      unit: "crore",
+      period: "Q3 FY24",
+      match_key: "revenue|inr",
+    });
+    const b = fact({
+      id: "b",
+      numeric_value: 72253,
+      unit: "million",
+      period: "FY23",
+      match_key: "revenue|inr",
+    });
+    expect(classifyRelationHeuristic(a, b)?.relationType).toBe("unrelated");
+  });
+
+  it("does not conflict when same-period magnitudes are far apart", () => {
+    const a = fact({
+      id: "a",
+      fact_type: "profit_loss",
+      numeric_value: 4516,
+      unit: "million",
+      period: "FY23",
+      match_key: "pat|inr",
+    });
+    const b = fact({
+      id: "b",
+      fact_type: "pat_value",
+      numeric_value: -1008,
+      unit: "crore",
+      period: "FY23",
+      match_key: "pat|inr",
+    });
+    expect(classifyRelationHeuristic(a, b)?.relationType).toBe("unrelated");
+  });
+
   it("corroborates matching numbers in the same family", () => {
     const a = fact({
       id: "a",
